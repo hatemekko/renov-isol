@@ -43,12 +43,12 @@ def _table_resultats(r: ResultatMateriau, style) -> Table:
         ["Épaisseur retenue", f"{r.e_commerciale_mm} mm"],
         ["Épaisseur totale posée", f"{r.e_totale_mm} mm"],
         ["R obtenu", f"{r.R_obtenu} m².K/W"],
-        ["Surface consommée", f"{r.surface_consommee_m2} m²"],
+        ["Surface perdue", f"{r.surface_consommee_m2} m²"],
         ["Coût fourniture", f"{r.cout_fourniture:,.0f} €"],
         ["Coût pose", f"{r.cout_pose:,.0f} €"],
-        ["Coût initial", f"{r.cout_initial:,.0f} €"],
-        ["Valorisation indicative de la surface consommée", f"{r.valorisation_surface:,.0f} €"],
-        ["Coût global économique indicatif", f"{r.cout_global:,.0f} €"],
+        ["Coût des travaux", f"{r.cout_initial:,.0f} €"],
+        ["Valeur des m² perdus", f"{r.valorisation_surface:,.0f} €"],
+        ["Coût + valeur des m² perdus", f"{r.cout_global:,.0f} €"],
         ["Statut hygrothermique", r.statut_hygro],
         ["Source", r.source or "—"],
     ]
@@ -124,7 +124,7 @@ def generer_pdf(
 
     # Recommandation principale
     if principale:
-        story.append(Paragraph("✅ Meilleur compromis technico-économique", s["H2"]))
+        story.append(Paragraph("✅ Coût + valeur des m² perdus le plus faible", s["H2"]))
         # Nettoyer le markdown pour reportlab
         expl = explication_principale.replace("**", "").replace("⚠️", "⚠")
         story.append(Paragraph(expl, s["Corps"]))
@@ -134,7 +134,7 @@ def generer_pdf(
 
     # Alternative
     if alternative:
-        story.append(Paragraph("💡 Alternative à investissement initial réduit", s["H2"]))
+        story.append(Paragraph("💡 Coût des travaux le plus faible", s["H2"]))
         expl2 = explication_alternative.replace("**", "").replace("⚠️", "⚠")
         story.append(Paragraph(expl2, s["Corps"]))
         story.append(Spacer(1, 0.2*cm))
@@ -170,8 +170,8 @@ def generer_pdf(
     story.append(Paragraph(
         "Cet outil constitue une aide à la décision. Il ne remplace pas une étude thermique "
         "réglementaire, une simulation thermique dynamique, une étude hygrothermique détaillée, "
-        "une expertise du bâtiment ou une étude économique complète. La valorisation économique "
-        "de la surface consommée est un coût d'opportunité indicatif, non un prix de vente garanti.",
+        "une expertise du bâtiment ou une étude économique complète. La valeur des m² perdus "
+        "est un coût d'opportunité indicatif, non un prix de vente garanti.",
         s["Limite"]))
 
     doc.build(story)

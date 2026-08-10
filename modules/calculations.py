@@ -38,6 +38,9 @@ class ResultatMateriau:
     source: str
     url: str
 
+    reference: str = ""
+    fiabilite: str = "—"
+
     admissible: bool = True
     motif_exclusion: str = ""
     detail_calculs: list = field(default_factory=list)
@@ -65,7 +68,7 @@ def selectionner_epaisseur_commerciale(
 
 
 def calculer_surface_consommee(lineaire_m: float, e_totale_mm: float) -> float:
-    """Surface consommée (m²) = linéaire × épaisseur totale (m)"""
+    """Surface perdue (m²) = linéaire × épaisseur totale (m)"""
     return round(lineaire_m * (e_totale_mm / 1000), 2)
 
 
@@ -81,7 +84,7 @@ def calculer_couts(
 
 
 def calculer_valorisation(surface_consommee_m2: float, prix_m2_logement: float) -> float:
-    """Valorisation économique indicative de la surface consommée"""
+    """Valeur des m² perdus = surface perdue × prix du logement (coût d'opportunité indicatif)"""
     return round(surface_consommee_m2 * prix_m2_logement, 2)
 
 
@@ -138,6 +141,7 @@ def analyser_materiau(
             cout_fourniture=0, cout_pose=0, cout_initial=0,
             prix_m2_logement=prix_m2_logement, valorisation_surface=0,
             cout_global=0, source=mat.get("source", ""), url=mat.get("url", ""),
+            reference=mat.get("reference", ""), fiabilite=str(mat.get("fiabilite") or "—"),
             admissible=False, motif_exclusion=motif, detail_calculs=detail,
         )
 
@@ -157,7 +161,7 @@ def analyser_materiau(
         f"Épaisseur totale = {e_com_mm} + {e_comp_mm} = {e_totale_mm} mm"
     )
     detail.append(
-        f"Surface consommée = {lineaire_m} m × {e_totale_mm/1000:.3f} m = {s_cons} m²"
+        f"Surface perdue = {lineaire_m} m × {e_totale_mm/1000:.3f} m = {s_cons} m²"
     )
 
     # ── Calcul économique ─────────────────────────────────────────────
@@ -167,9 +171,9 @@ def analyser_materiau(
     detail += [
         f"Coût fourniture = {surface_murs_m2} m² × {prix_f} €/m² = {cf} €",
         f"Coût pose = {surface_murs_m2} m² × {prix_p} €/m² = {cp} €",
-        f"Coût initial = {cf} + {cp} = {ci} €",
-        f"Valorisation surface = {s_cons} m² × {prix_m2_logement} €/m² = {vs} €",
-        f"Coût global indicatif = {ci} + {vs} = {cg} €",
+        f"Coût des travaux = {cf} + {cp} = {ci} €",
+        f"Valeur des m² perdus = {s_cons} m² × {prix_m2_logement} €/m² = {vs} €",
+        f"Coût + valeur des m² perdus = {ci} + {vs} = {cg} €",
     ]
 
     return ResultatMateriau(
@@ -185,5 +189,6 @@ def analyser_materiau(
         cout_fourniture=cf, cout_pose=cp, cout_initial=ci,
         prix_m2_logement=prix_m2_logement, valorisation_surface=vs,
         cout_global=cg, source=mat.get("source", ""), url=mat.get("url", ""),
+        reference=mat.get("reference", ""), fiabilite=str(mat.get("fiabilite") or "—"),
         admissible=admissible, motif_exclusion=motif, detail_calculs=detail,
     )

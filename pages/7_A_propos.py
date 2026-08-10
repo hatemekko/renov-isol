@@ -25,8 +25,8 @@ RENOV'ISOL permet de comparer des solutions d'isolation thermique par l'intérie
 dans des bâtiments anciens dont la façade ne peut pas être isolée par l'extérieur.
 
 À performance thermique imposée, l'épaisseur posée dépend de la conductivité du matériau. 
-L'outil quantifie la surface habitable consommée et calcule le coût global indicatif 
-de chaque solution, en intégrant la valorisation économique de cette surface.
+L'outil quantifie la surface habitable perdue et calcule, pour chaque solution, 
+le total « coût des travaux + valeur des m² perdus », en intégrant la valeur de cette surface.
 
 ---
 
@@ -50,7 +50,7 @@ Cet outil constitue une aide à la décision. Il **ne remplace pas** :
 - une expertise du bâtiment ;
 - une étude économique complète (analyse de cycle de vie, financement…).
 
-La valorisation économique de la surface consommée est un **coût d'opportunité indicatif**.
+La valeur des m² perdus est un **coût d'opportunité indicatif**.
 Elle dépend du prix de marché local, qui peut varier.
 
 L'outil ne gère pas les ponts thermiques, les propriétés acoustiques, 

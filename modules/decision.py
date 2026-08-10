@@ -20,8 +20,8 @@ def filtrer_et_classer(
 
 def recommandation_principale(admissibles: list[ResultatMateriau]) -> ResultatMateriau | None:
     """
-    Meilleur compromis technico-économique :
-    solution avec le plus faible coût global indicatif.
+    Coût + valeur des m² perdus le plus faible :
+    solution avec le plus faible total (coût des travaux + valeur des m² perdus).
     En cas d'égalité, on préfère la plus mince.
     """
     if not admissibles:
@@ -34,8 +34,8 @@ def alternative_economique(
     principale: ResultatMateriau | None,
 ) -> ResultatMateriau | None:
     """
-    Alternative à investissement initial réduit :
-    solution avec le plus faible coût initial.
+    Coût des travaux le plus faible :
+    solution avec le plus faible coût des travaux.
     En cas d'égalité, on préfère la plus mince.
     Si c'est la même que la principale, retourner None.
     """
@@ -54,20 +54,20 @@ def generer_explication(r: ResultatMateriau, est_principale: bool) -> str:
     """
     if est_principale:
         intro = (
-            f"**{r.nom}** est retenu comme meilleur compromis technico-économique. "
+            f"**{r.nom}** obtient le coût + valeur des m² perdus le plus faible. "
         )
         thermo = (
             f"Il atteint la résistance thermique cible avec {r.e_commerciale_mm} mm "
             f"(R = {r.R_obtenu} m².K/W pour une cible de {r.R_cible} m².K/W). "
         )
         surface = (
-            f"Son épaisseur totale de {r.e_totale_mm} mm consomme {r.surface_consommee_m2} m² "
-            "de surface habitable. "
+            f"Son épaisseur totale de {r.e_totale_mm} mm entraîne {r.surface_consommee_m2} m² "
+            "de surface perdue. "
         )
         eco = (
-            f"Son coût initial est de {r.cout_initial:,.0f} € et la valorisation économique "
-            f"indicative de la surface consommée s'élève à {r.valorisation_surface:,.0f} €, "
-            f"soit un coût global indicatif de {r.cout_global:,.0f} €, "
+            f"Son coût des travaux est de {r.cout_initial:,.0f} € et la valeur des m² perdus "
+            f"s'élève à {r.valorisation_surface:,.0f} €, soit un total "
+            f"(coût + valeur des m² perdus) de {r.cout_global:,.0f} €, "
             "le plus faible parmi les solutions admissibles."
         )
         hygro = ""
@@ -80,15 +80,15 @@ def generer_explication(r: ResultatMateriau, est_principale: bool) -> str:
 
     else:
         intro = (
-            f"**{r.nom}** présente l'investissement initial le plus faible : {r.cout_initial:,.0f} €. "
+            f"**{r.nom}** présente le coût des travaux le plus faible : {r.cout_initial:,.0f} €. "
         )
         thermo = (
             f"Il atteint la résistance thermique cible avec {r.e_commerciale_mm} mm "
             f"(R = {r.R_obtenu} m².K/W). "
         )
         eco = (
-            f"Son coût global indicatif ({r.cout_global:,.0f} €) est supérieur à celui "
-            "de la solution principale en raison d'une surface habitable plus importante consommée "
+            f"Son total (coût + valeur des m² perdus, {r.cout_global:,.0f} €) est supérieur à celui "
+            "de la solution principale en raison d'une surface perdue plus importante "
             f"({r.surface_consommee_m2} m²)."
         )
         hygro = ""
