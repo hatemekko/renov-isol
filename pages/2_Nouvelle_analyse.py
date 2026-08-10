@@ -47,6 +47,20 @@ with st.form("form_analyse"):
         prix_m2       = st.number_input("Prix du logement (€/m²) *",
                                          min_value=500, max_value=50000, value=13649, step=100)
 
+    with st.expander("➕ Préciser la paroi si « Autre / inconnue »"):
+        st.caption("À remplir uniquement si vous avez choisi « Autre / inconnue » ci-dessus. "
+                   "Sinon, laissez tel quel.")
+        paroi_type = st.selectbox(
+            "Type de paroi",
+            ["Non précisé", "Perspirante", "Semi-étanche", "Pare-vapeur / étanche"],
+        )
+        paroi_mu = st.number_input(
+            "µ de la paroi (optionnel — 0 = non renseigné)",
+            min_value=0.0, value=0.0, step=1.0,
+            help="Si renseigné (> 0), il est prioritaire sur le type ci-dessus. "
+                 "µ ≤ 10 = perspirant ; µ > 10 = semi-étanche / pare-vapeur.",
+        )
+
     st.caption("* Champs obligatoires. Les valeurs négatives sont refusées.")
 
     lancer = st.form_submit_button("🔍 Lancer l'analyse", use_container_width=True, type="primary")
@@ -78,6 +92,16 @@ if lancer:
         st.warning("Aucun matériau actif dans la base. Ajoutez des matériaux via la page Administration.")
         st.stop()
 
+    # Paroi "Autre / inconnue" : précisions saisies par l'utilisateur
+    type_mur_force = ""
+    if composition_mur == "Autre / inconnue":
+        if paroi_mu and paroi_mu > 0:
+            type_mur_force = "perspirant" if paroi_mu <= 10 else "semi_etanche"
+        elif paroi_type == "Perspirante":
+            type_mur_force = "perspirant"
+        elif paroi_type in ("Semi-étanche", "Pare-vapeur / étanche"):
+            type_mur_force = "semi_etanche"
+
     # Analyse de chaque matériau
     resultats = []
     for _, mat in df_mat.iterrows():
@@ -89,6 +113,7 @@ if lancer:
             mat_dict.get("statut_hygro_pierre", "Compatible") if "pierre" in composition_mur.lower()
             else mat_dict.get("statut_hygro_beton", "Compatible"),
             "",
+            type_mur_force=type_mur_force,
         )
         r = analyser_materiau(
             mat=mat_dict,

@@ -68,14 +68,18 @@ def afficher_carte(r, titre: str, css_extra: str = ""):
     st.markdown(f"*{expl_p if css_extra == '' else expl_a}*")
 
 
-# ── Recommandations ────────────────────────────────────────────────────────────
-if principale:
-    afficher_carte(principale, "✅ Coût + valeur des m² perdus le plus faible")
+# ── Explication des résultats ──────────────────────────────────────────────────
+if not admissibles:
+    st.error("Aucune solution admissible n'a été trouvée pour les paramètres saisis. "
+             "Ajustez le R cible ou la composition du mur dans Nouvelle analyse.")
 else:
-    st.error("Aucune solution admissible n'a été trouvée pour les paramètres saisis.")
-
-if alternative:
-    afficher_carte(alternative, "💡 Coût des travaux le plus faible", "card-alt")
+    st.markdown(
+        "Le tableau ci-dessous liste **toutes les solutions techniquement admissibles** : "
+        "elles atteignent le R cible et sont compatibles avec le mur. Pour chacune, on compare "
+        "le **coût des travaux**, la **surface perdue** et la **valeur des m² perdus**. "
+        "Le graphique plus bas les positionne les unes par rapport aux autres — la zone "
+        "**en bas à gauche** réunit les solutions les moins chères qui font perdre le moins de surface."
+    )
 
 st.markdown("---")
 
@@ -103,14 +107,6 @@ if admissibles:
     st.download_button("⬇️ Exporter CSV", csv, "renov_isol_resultats.csv", "text/csv")
 else:
     st.warning("Aucune solution admissible.")
-
-# ── Solutions écartées ─────────────────────────────────────────────────────────
-if ecartees:
-    with st.expander(f"Solutions écartées ({len(ecartees)})"):
-        rows_e = [{"Matériau": r.nom, "Motif": r.motif_exclusion} for r in ecartees]
-        st.dataframe(pd.DataFrame(rows_e), use_container_width=True, hide_index=True)
-
-st.markdown("---")
 
 # ── Graphique d'aide à la décision ─────────────────────────────────────────────
 st.subheader("Comparaison des solutions d'ITI")
@@ -152,13 +148,13 @@ if admissibles:
             [0.0, "#1a9850"], [0.25, "#91cf60"], [0.5, "#fee08b"],
             [0.75, "#fc8d59"], [1.0, "#d73027"],
         ],
-        size_max=48,
+        size_max=80,
     )
 
     fig.update_traces(
         textposition="top center",
         textfont=dict(color="#2B3A42", size=11),
-        marker=dict(line=dict(width=1, color="#2B3A42")),
+        marker=dict(sizemin=8, line=dict(width=1, color="#2B3A42")),
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
             "%{customdata[1]}<br>"
@@ -223,14 +219,6 @@ else:
     st.info("Aucune solution admissible à afficher. Ajustez le R cible ou la composition du mur.")
 
 st.markdown("---")
-
-# ── Détail des calculs ─────────────────────────────────────────────────────────
-with st.expander("🔍 Voir le détail des calculs"):
-    for r in admissibles + ecartees:
-        st.markdown(f"**{r.nom}**")
-        for ligne in r.detail_calculs:
-            st.markdown(f"- {ligne}")
-        st.markdown("---")
 
 # ── Export PDF ─────────────────────────────────────────────────────────────────
 st.subheader("Export")

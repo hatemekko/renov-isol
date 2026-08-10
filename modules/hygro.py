@@ -58,6 +58,7 @@ def resoudre_statut(
     mu: float,
     statut_base: str,
     justif_base: str,
+    type_mur_force: str = "",
 ) -> tuple[str, str]:
     """
     Détermine le statut hygrothermique effectif en croisant :
@@ -72,7 +73,7 @@ def resoudre_statut(
     if statut_base == "Non compatible":
         return "Non compatible", justif_base or "Non compatible selon la fiche technique."
 
-    type_mur = _classer_mur(composition_mur)
+    type_mur = type_mur_force or _classer_mur(composition_mur)
     type_isolant = _classer_isolant(mu)
 
     # Matrice de décision
