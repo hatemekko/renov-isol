@@ -1,3 +1,4 @@
+# Secrets — NE JAMAIS COMMITTER
 .streamlit/secrets.toml
 
 # Python
