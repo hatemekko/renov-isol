@@ -233,6 +233,7 @@ if st.button("📄 Générer le rapport PDF", type="primary"):
                 ecartees=ecartees,
                 explication_principale=expl_p,
                 explication_alternative=expl_a,
+                admissibles=admissibles,
             )
             st.download_button(
                 "⬇️ Télécharger le PDF",

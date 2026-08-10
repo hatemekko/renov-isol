@@ -3,12 +3,20 @@ Export PDF des résultats d'analyse avec reportlab.
 """
 import io
 from datetime import datetime
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+from matplotlib.colors import Normalize, LinearSegmentedColormap
+
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
+    Image as RLImage,
 )
 from modules.calculations import ResultatMateriau
 
@@ -16,6 +24,18 @@ SLATE  = colors.HexColor("#2B3A42")
 COPPER = colors.HexColor("#C1553B")
 STONE  = colors.HexColor("#5B7C8D")
 LIGHT  = colors.HexColor("#F1F3F4")
+
+# Police Unicode complète (DejaVu Sans, fournie par matplotlib) enregistrée sous le nom
+# "Helvetica" : tout le texte et tous les tableaux affichent alors correctement le « ² »,
+# le « € » et les accents, sans autre modification.
+try:
+    import matplotlib.font_manager as _fm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    pdfmetrics.registerFont(TTFont("Helvetica", _fm.findfont("DejaVu Sans")))
+    pdfmetrics.registerFont(TTFont("Helvetica-Bold", _fm.findfont("DejaVu Sans:bold")))
+except Exception:
+    pass
 
 
 def _style():
@@ -69,6 +89,91 @@ def _table_resultats(r: ResultatMateriau, style) -> Table:
     return t
 
 
+def _graph_image(admissibles):
+    """Construit le graphique à bulles (coût des travaux × surface perdue) en image PNG."""
+    if not admissibles:
+        return None
+    xs = [r.cout_initial for r in admissibles]
+    ys = [r.surface_consommee_m2 for r in admissibles]
+    vals = [r.valorisation_surface for r in admissibles]
+    sommes = [r.cout_global for r in admissibles]
+    noms = [r.nom for r in admissibles]
+
+    vmax = max(vals) if max(vals) > 0 else 1
+    sizes = [200 + 2000 * (v / vmax) for v in vals]
+
+    smin, smax = min(sommes), max(sommes)
+    cmap = LinearSegmentedColormap.from_list(
+        "gyr", ["#1a9850", "#91cf60", "#fee08b", "#fc8d59", "#d73027"])
+
+    fig, ax = plt.subplots(figsize=(7.2, 4.3), dpi=150)
+    if smax > smin:
+        sc = ax.scatter(xs, ys, s=sizes, c=sommes, cmap=cmap, vmin=smin, vmax=smax,
+                        edgecolors="#2B3A42", linewidths=0.8, alpha=0.9, zorder=3)
+        cb = fig.colorbar(sc, ax=ax)
+        cb.set_label("Coût + valeur des m² perdus", fontsize=8, color="#2B3A42")
+        cb.set_ticks([smin, smax])
+        cb.set_ticklabels(["Faible", "Élevé"])
+        cb.ax.tick_params(labelsize=7, colors="#2B3A42")
+    else:
+        ax.scatter(xs, ys, s=sizes, c="#1a9850",
+                   edgecolors="#2B3A42", linewidths=0.8, alpha=0.9, zorder=3)
+
+    for x, y, n in zip(xs, ys, noms):
+        ax.annotate(n, (x, y), fontsize=7, color="#2B3A42",
+                    ha="center", va="bottom", xytext=(0, 7), textcoords="offset points")
+
+    ax.set_xlabel("Coût des travaux (€)", fontsize=10, color="#2B3A42")
+    ax.set_ylabel("Surface perdue (m²)", fontsize=10, color="#2B3A42")
+    ax.grid(True, color="#E6E9EB", linewidth=0.6, zorder=0)
+    ax.tick_params(colors="#2B3A42", labelsize=8)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    for spine in ax.spines.values():
+        spine.set_color("#9AA3A8")
+
+    fig.tight_layout()
+    img = io.BytesIO()
+    fig.savefig(img, format="png", bbox_inches="tight")
+    plt.close(fig)
+    img.seek(0)
+    return img
+
+
+def _table_comparatif(admissibles, style) -> Table:
+    cell = ParagraphStyle("cellmat", fontSize=8, leading=10, textColor=SLATE)
+    hcell = ParagraphStyle("hcell", fontSize=7.5, leading=9,
+                           textColor=colors.white, fontName="Helvetica-Bold")
+    labels = ["Matériau", "Ép. (mm)", "R", "Coût travaux (€)",
+              "Surface perdue (m²)", "Valeur m² perdus (€)", "Coût + valeur (€)"]
+    data = [[Paragraph(h, hcell) for h in labels]]
+    for r in admissibles:
+        data.append([
+            Paragraph(r.nom, cell),
+            f"{r.e_commerciale_mm}",
+            f"{r.R_obtenu}",
+            f"{r.cout_initial:,.0f}",
+            f"{r.surface_consommee_m2:.2f}",
+            f"{r.valorisation_surface:,.0f}",
+            f"{r.cout_global:,.0f}",
+        ])
+    t = Table(data, colWidths=[4.0*cm, 1.6*cm, 1.6*cm, 2.6*cm, 2.6*cm, 2.6*cm, 2.0*cm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",  (0, 0), (-1, 0), SLATE),
+        ("TEXTCOLOR",   (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",    (0, 0), (-1, -1), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LIGHT, colors.white]),
+        ("GRID",        (0, 0), (-1, -1), 0.5, colors.HexColor("#D8DDE0")),
+        ("ALIGN",       (1, 1), (-1, -1), "RIGHT"),
+        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING",   (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 3),
+    ]))
+    return t
+
+
 def generer_pdf(
     nom_projet: str,
     params: dict,
@@ -77,6 +182,7 @@ def generer_pdf(
     ecartees: list[ResultatMateriau],
     explication_principale: str,
     explication_alternative: str,
+    admissibles: list[ResultatMateriau] | None = None,
 ) -> bytes:
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4,
@@ -121,6 +227,28 @@ def generer_pdf(
     ]))
     story.append(pt)
     story.append(Spacer(1, 0.5*cm))
+
+    # Comparaison des solutions : graphique + tableau
+    if admissibles:
+        story.append(Paragraph("Comparaison des solutions", s["H2"]))
+        story.append(Paragraph(
+            "Le graphique positionne chaque solution admissible selon son coût des travaux "
+            "(axe horizontal) et la surface perdue (axe vertical). La taille de la bulle "
+            "représente la valeur des m² perdus ; la couleur (verte → rouge) compare, entre "
+            "les solutions du projet, la somme « coût des travaux + valeur des m² perdus ». "
+            "La zone en bas à gauche réunit les solutions les moins chères qui font perdre "
+            "le moins de surface intérieure.", s["Corps"]))
+        img = _graph_image(admissibles)
+        if img is not None:
+            story.append(RLImage(img, width=16*cm, height=9.5*cm))
+        story.append(Paragraph(
+            "Comment lire le graphique : plus une solution est à gauche, moins les travaux "
+            "coûtent cher ; plus elle est basse, moins elle fait perdre de surface intérieure.",
+            s["Limite"]))
+        story.append(Spacer(1, 0.3*cm))
+        story.append(Paragraph("Tableau comparatif — solutions admissibles", s["H2"]))
+        story.append(_table_comparatif(admissibles, s))
+        story.append(Spacer(1, 0.5*cm))
 
     # Recommandation principale
     if principale:
