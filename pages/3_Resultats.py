@@ -116,6 +116,7 @@ if admissibles:
     # Aucune liste de matériaux n'est codée en dur : ajouter un matériau à la base
     # qui passe les conditions l'ajoutera automatiquement ici.
     df_g = pd.DataFrame([{
+        "N°": str(i),
         "Matériau": r.nom,
         "FabRef": (f"{r.fabricant} — {getattr(r, 'reference', '')}"
                    if getattr(r, 'reference', '') else (r.fabricant or "—")),
@@ -127,7 +128,7 @@ if admissibles:
         "Valeur des m² perdus (€)": r.valorisation_surface,
         "Somme": r.cout_global,          # coût des travaux + valeur des m² perdus (comparaison interne)
         "Fiabilité": getattr(r, "fiabilite", "—"),
-    } for r in admissibles])
+    } for i, r in enumerate(admissibles, start=1)])
 
     # Taille des bulles = valeur des m² perdus. Si tout est à 0 (prix immobilier = 0),
     # on évite des bulles invisibles avec une taille constante.
@@ -140,7 +141,7 @@ if admissibles:
         y="Surface perdue (m²)",
         size="_taille",
         color="Somme",
-        text="Matériau",
+        text="N°",
         custom_data=["Matériau", "FabRef", "Ép. isolant (mm)", "Ép. totale (mm)",
                      "R obtenu", "Coût des travaux (€)", "Surface perdue (m²)",
                      "Valeur des m² perdus (€)", "Fiabilité"],
@@ -148,13 +149,14 @@ if admissibles:
             [0.0, "#1a9850"], [0.25, "#91cf60"], [0.5, "#fee08b"],
             [0.75, "#fc8d59"], [1.0, "#d73027"],
         ],
-        size_max=80,
+        size_max=55,
+        opacity=0.55,
     )
 
     fig.update_traces(
-        textposition="top center",
-        textfont=dict(color="#2B3A42", size=11),
-        marker=dict(sizemin=8, line=dict(width=1, color="#2B3A42")),
+        textposition="middle center",
+        textfont=dict(color="#1a1a1a", size=13, family="Arial Black, Arial, sans-serif"),
+        marker=dict(sizemin=6, line=dict(width=1.2, color="#2B3A42")),
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
             "%{customdata[1]}<br>"
@@ -208,12 +210,16 @@ if admissibles:
 
     st.plotly_chart(fig, use_container_width=True)
 
+    legende = "   ·   ".join(f"**{i}.** {r.nom}" for i, r in enumerate(admissibles, start=1))
+    st.markdown("**Repères :**  " + legende)
+
     st.caption(
         "**Comment lire le graphique ?** Plus une solution est à gauche, plus son coût "
         "de travaux est faible. Plus elle est basse, moins elle fait perdre de surface "
         "intérieure. La taille de la bulle représente la valeur des m² perdus selon le "
         "prix immobilier renseigné. La couleur permet de comparer le coût des travaux et "
-        "cette valeur entre les solutions du projet."
+        "cette valeur entre les solutions du projet. Les bulles sont numérotées (voir repères "
+        "ci-dessus) et semi-transparentes pour rester lisibles quand des solutions se superposent."
     )
 else:
     st.info("Aucune solution admissible à afficher. Ajustez le R cible ou la composition du mur.")

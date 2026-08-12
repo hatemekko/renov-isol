@@ -7,6 +7,7 @@ from datetime import datetime
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 from matplotlib.ticker import FuncFormatter
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 
@@ -100,7 +101,7 @@ def _graph_image(admissibles):
     noms = [r.nom for r in admissibles]
 
     vmax = max(vals) if max(vals) > 0 else 1
-    sizes = [200 + 2000 * (v / vmax) for v in vals]
+    sizes = [140 + 1100 * (v / vmax) for v in vals]
 
     smin, smax = min(sommes), max(sommes)
     cmap = LinearSegmentedColormap.from_list(
@@ -109,7 +110,7 @@ def _graph_image(admissibles):
     fig, ax = plt.subplots(figsize=(7.2, 4.3), dpi=150)
     if smax > smin:
         sc = ax.scatter(xs, ys, s=sizes, c=sommes, cmap=cmap, vmin=smin, vmax=smax,
-                        edgecolors="#2B3A42", linewidths=0.8, alpha=0.9, zorder=3)
+                        edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
         cb = fig.colorbar(sc, ax=ax)
         cb.set_label("Coût + valeur des m² perdus", fontsize=8, color="#2B3A42")
         cb.set_ticks([smin, smax])
@@ -117,11 +118,13 @@ def _graph_image(admissibles):
         cb.ax.tick_params(labelsize=7, colors="#2B3A42")
     else:
         ax.scatter(xs, ys, s=sizes, c="#1a9850",
-                   edgecolors="#2B3A42", linewidths=0.8, alpha=0.9, zorder=3)
+                   edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
 
-    for x, y, n in zip(xs, ys, noms):
-        ax.annotate(n, (x, y), fontsize=7, color="#2B3A42",
-                    ha="center", va="bottom", xytext=(0, 7), textcoords="offset points")
+    # Numéro au centre de chaque bulle (contour blanc pour rester lisible sur toute couleur)
+    for i, (x, y) in enumerate(zip(xs, ys), start=1):
+        ax.annotate(str(i), (x, y), fontsize=8, fontweight="bold", color="#1a1a1a",
+                    ha="center", va="center", zorder=5,
+                    path_effects=[pe.withStroke(linewidth=2.2, foreground="white")])
 
     ax.set_xlabel("Coût des travaux (€)", fontsize=10, color="#2B3A42")
     ax.set_ylabel("Surface perdue (m²)", fontsize=10, color="#2B3A42")
@@ -241,6 +244,9 @@ def generer_pdf(
         img = _graph_image(admissibles)
         if img is not None:
             story.append(RLImage(img, width=16*cm, height=9.5*cm))
+            legende = "   ·   ".join(f"{i} = {r.nom}"
+                                     for i, r in enumerate(admissibles, start=1))
+            story.append(Paragraph("<b>Repères :</b> " + legende, s["Limite"]))
         story.append(Paragraph(
             "Comment lire le graphique : plus une solution est à gauche, moins les travaux "
             "coûtent cher ; plus elle est basse, moins elle fait perdre de surface intérieure.",
