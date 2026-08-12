@@ -4,6 +4,7 @@ Le mot de passe est stocké dans st.secrets, jamais dans le code.
 """
 import streamlit as st
 import json
+import pandas as pd
 
 st.title("🔒 Administration")
 
@@ -30,6 +31,50 @@ st.success("Connecté en tant qu'administrateur.")
 
 from database.sheets import lire_materiaux, ajouter_materiau, modifier_materiau, toggle_actif
 
+PRIX_COLS = {
+    "Épaisseur (mm)": st.column_config.NumberColumn(min_value=1, step=1, format="%d"),
+    "Fourniture (€/m²)": st.column_config.NumberColumn(min_value=0.0, step=0.5, format="%.2f"),
+    "Pose (€/m²)": st.column_config.NumberColumn(min_value=0.0, step=0.5, format="%.2f"),
+}
+
+
+def _prix_table_from_epaisseurs(epaisseurs_raw, pf_repli=0.0, pp_repli=0.0) -> pd.DataFrame:
+    """Construit le tableau (Épaisseur, Fourniture, Pose) à partir de epaisseurs_mm.
+    Ancien format [100, 120] → prix unique appliqué à chaque ligne (modifiable)."""
+    rows = []
+    for item in (epaisseurs_raw or []):
+        if isinstance(item, dict):
+            rows.append({"Épaisseur (mm)": int(item.get("e") or 0),
+                         "Fourniture (€/m²)": float(item.get("pf") or 0),
+                         "Pose (€/m²)": float(item.get("pp") or 0)})
+        else:
+            try:
+                rows.append({"Épaisseur (mm)": int(item),
+                             "Fourniture (€/m²)": float(pf_repli or 0),
+                             "Pose (€/m²)": float(pp_repli or 0)})
+            except (TypeError, ValueError):
+                continue
+    if not rows:
+        rows = [{"Épaisseur (mm)": 100, "Fourniture (€/m²)": 0.0, "Pose (€/m²)": 0.0}]
+    return pd.DataFrame(rows)
+
+
+def _parse_prix_table(df):
+    """Transforme le tableau édité en (liste enrichie [{e,pf,pp}], pf_repli, pp_repli)."""
+    enrichi = []
+    for _, r in df.iterrows():
+        e = r.get("Épaisseur (mm)")
+        if pd.isna(e) or int(e) <= 0:
+            continue
+        enrichi.append({"e": int(e),
+                        "pf": float(r.get("Fourniture (€/m²)") or 0),
+                        "pp": float(r.get("Pose (€/m²)") or 0)})
+    enrichi.sort(key=lambda d: d["e"])
+    if enrichi:
+        return enrichi, enrichi[0]["pf"], enrichi[0]["pp"]
+    return [], 0.0, 0.0
+
+
 tab_add, tab_edit = st.tabs(["➕ Ajouter un matériau", "✏️ Modifier / désactiver"])
 
 # ── AJOUTER ────────────────────────────────────────────────────────────────────
@@ -44,12 +89,18 @@ with tab_add:
         reference  = c2.text_input("Référence commerciale")
 
         st.markdown("**Thermique**")
-        c1, c2 = st.columns(2)
-        lambda_str  = c1.text_input("λ (W/m.K) *", value="0.032",
-                                     help="Point ou virgule accepté (ex. 0,032 ou 0.032).")
-        epaisseurs_str = c2.text_input(
-            "Épaisseurs commerciales (mm), séparées par des virgules *",
-            placeholder="Ex. : 100, 120, 140, 160"
+        lambda_str = st.text_input("λ (W/m.K) *", value="0.032",
+                                   help="Point ou virgule accepté (ex. 0,032 ou 0.032).")
+
+        st.markdown("**Épaisseurs commerciales et prix** *")
+        st.caption("Une ligne par épaisseur, avec son prix de fourniture et de pose "
+                   "(chaque épaisseur a son propre prix). Bouton « + » en bas du tableau pour ajouter une ligne.")
+        prix_df_add = st.data_editor(
+            pd.DataFrame({"Épaisseur (mm)": [100, 120, 140],
+                          "Fourniture (€/m²)": [0.0, 0.0, 0.0],
+                          "Pose (€/m²)": [0.0, 0.0, 0.0]}),
+            num_rows="dynamic", use_container_width=True, key="prix_add",
+            column_config=PRIX_COLS,
         )
 
         st.markdown("**Hygrothermique**")
@@ -60,11 +111,8 @@ with tab_add:
         statut_beton  = c3.selectbox("Statut (mur béton)", ["Compatible", "À vérifier", "Non compatible"])
         justif_hygro  = st.text_area("Justification hygrothermique")
 
-        st.markdown("**Économique**")
-        c1, c2, c3 = st.columns(3)
-        prix_fourniture = c1.number_input("Fourniture (€/m²) *", min_value=0.0, value=0.0)
-        prix_pose       = c2.number_input("Pose (€/m²) *", min_value=0.0, value=0.0)
-        ep_comp         = c3.number_input("Épaisseur complémentaire du complexe (mm)", min_value=0, value=13)
+        st.markdown("**Autres**")
+        ep_comp = st.number_input("Épaisseur complémentaire du complexe (mm)", min_value=0, value=13)
 
         st.markdown("**Documentation**")
         c1, c2 = st.columns(2)
@@ -86,13 +134,9 @@ with tab_add:
         except ValueError:
             erreurs.append("λ invalide. Entrez un nombre entre 0 et 1 (ex. 0,032).")
             lambda_val = 0.0
-        try:
-            epaisseurs = [int(e.strip()) for e in epaisseurs_str.split(",") if e.strip()]
-            if not epaisseurs:
-                raise ValueError
-        except ValueError:
-            erreurs.append("Épaisseurs invalides. Entrez des entiers séparés par des virgules.")
-            epaisseurs = []
+        epaisseurs, prix_f0, prix_p0 = _parse_prix_table(prix_df_add)
+        if not epaisseurs:
+            erreurs.append("Renseignez au moins une épaisseur avec son prix (fourniture et pose).")
 
         if erreurs:
             for e in erreurs:
@@ -110,8 +154,8 @@ with tab_add:
                 "statut_hygro_pierre": statut_pierre,
                 "statut_hygro_beton": statut_beton,
                 "justification_hygro": justif_hygro.strip(),
-                "prix_fourniture_eur_m2": prix_fourniture,
-                "prix_pose_eur_m2": prix_pose,
+                "prix_fourniture_eur_m2": prix_f0,
+                "prix_pose_eur_m2": prix_p0,
                 "epaisseur_complementaire_mm": ep_comp,
                 "source": source.strip(),
                 "url": url.strip(),
@@ -143,10 +187,10 @@ with tab_edit:
             st.markdown(f"**λ :** {row.get('lambda_wm K')} W/m.K")
             st.markdown(f"**µ :** {row.get('mu')}")
             st.markdown(f"**Statut hygro pierre :** {row.get('statut_hygro_pierre')}")
-            st.markdown(f"**Fourniture :** {row.get('prix_fourniture_eur_m2')} €/m²")
-            st.markdown(f"**Pose :** {row.get('prix_pose_eur_m2')} €/m²")
         with col2:
-            st.markdown(f"**Épaisseurs :** {row.get('epaisseurs_mm')}")
+            _ths = [(d.get("e") if isinstance(d, dict) else d)
+                    for d in (row.get("epaisseurs_mm") or [])]
+            st.markdown(f"**Épaisseurs :** {', '.join(str(t) for t in _ths)} mm")
             st.markdown(f"**Source :** {row.get('source', '—')}")
             st.markdown(f"**Mise à jour :** {row.get('date_maj', '—')}")
 
@@ -160,11 +204,9 @@ with tab_edit:
             v = str(val or "").strip()
             return opts.index(v) if v in opts else 0
 
-        try:
-            _ep_list = json.loads(row.get("epaisseurs_mm") or "[]")
-            _ep_prefill = ", ".join(str(e) for e in _ep_list)
-        except Exception:
-            _ep_prefill = str(row.get("epaisseurs_mm") or "")
+        _prix_df_init = _prix_table_from_epaisseurs(
+            row.get("epaisseurs_mm"),
+            row.get("prix_fourniture_eur_m2"), row.get("prix_pose_eur_m2"))
 
         with st.form("form_edit_full"):
             c1, c2 = st.columns(2)
@@ -173,10 +215,13 @@ with tab_edit:
             e_fabricant = c1.text_input("Fabricant", value=str(row.get("fabricant") or ""))
             e_reference = c2.text_input("Référence", value=str(row.get("reference") or ""))
 
-            c1, c2 = st.columns(2)
-            e_lambda = c1.text_input("λ (W/m.K)", value=str(row.get("lambda_wm K") or ""),
+            e_lambda = st.text_input("λ (W/m.K)", value=str(row.get("lambda_wm K") or ""),
                                      help="Point ou virgule accepté (ex. 0,032).")
-            e_ep     = c2.text_input("Épaisseurs (mm, séparées par des virgules)", value=_ep_prefill)
+            st.markdown("**Épaisseurs commerciales et prix**")
+            st.caption("Une ligne par épaisseur, avec son prix de fourniture et de pose.")
+            e_prix_df = st.data_editor(_prix_df_init, num_rows="dynamic",
+                                       use_container_width=True, key="prix_edit",
+                                       column_config=PRIX_COLS)
 
             c1, c2, c3 = st.columns(3)
             e_mu     = c1.text_input("µ", value=str(row.get("mu") or ""),
@@ -192,12 +237,6 @@ with tab_edit:
                                 index=_idx(row.get("statut_hygro_beton"), opts_statut))
             e_justif = st.text_area("Justification hygrothermique",
                                     value=str(row.get("justification_hygro") or ""))
-
-            c1, c2 = st.columns(2)
-            e_pf = c1.text_input("Fourniture (€/m²)", value=str(row.get("prix_fourniture_eur_m2") or "0"),
-                                 help="Point ou virgule accepté.")
-            e_pp = c2.text_input("Pose (€/m²)", value=str(row.get("prix_pose_eur_m2") or "0"),
-                                 help="Point ou virgule accepté.")
 
             c1, c2 = st.columns(2)
             e_source = c1.text_input("Source", value=str(row.get("source") or ""))
@@ -221,14 +260,9 @@ with tab_edit:
                     errs.append("λ doit être supérieur à 0.")
                     v_lambda = None
                 v_mu = _num(e_mu, "µ")
-                v_pf = _num(e_pf, "Prix fourniture")
-                v_pp = _num(e_pp, "Prix pose")
-                try:
-                    v_ep = [int(x.strip()) for x in e_ep.split(",") if x.strip()]
-                    if not v_ep:
-                        raise ValueError
-                except ValueError:
-                    errs.append("Épaisseurs invalides.")
+                v_ep, v_pf, v_pp = _parse_prix_table(e_prix_df)
+                if not v_ep:
+                    errs.append("Renseignez au moins une épaisseur avec son prix.")
                     v_ep = None
                 if not e_nom.strip():
                     errs.append("Le nom est obligatoire.")

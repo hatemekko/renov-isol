@@ -92,6 +92,27 @@ def calculer_cout_global(cout_initial: float, valorisation_surface: float) -> fl
     return round(cout_initial + valorisation_surface, 2)
 
 
+def _thicknesses_and_prices(epaisseurs_raw):
+    """Sépare epaisseurs_mm en (liste d'épaisseurs [int], prix {str(e): {pf, pp}}).
+    Compatible ancien format [100, 120] ET nouveau format [{"e":100,"pf":..,"pp":..}, ...]."""
+    ths, prices = [], {}
+    for item in (epaisseurs_raw or []):
+        if isinstance(item, dict):
+            try:
+                e = int(item.get("e"))
+            except (TypeError, ValueError):
+                continue
+            ths.append(e)
+            prices[str(e)] = {"pf": float(item.get("pf") or 0),
+                              "pp": float(item.get("pp") or 0)}
+        else:
+            try:
+                ths.append(int(item))
+            except (TypeError, ValueError):
+                continue
+    return ths, prices
+
+
 def analyser_materiau(
     mat: dict,
     R_cible: float,
@@ -106,7 +127,7 @@ def analyser_materiau(
     Retourne un ResultatMateriau complet (admissible ou non).
     """
     lambda_val = float(mat["lambda_wm K"])
-    epaisseurs = mat["epaisseurs_mm"]
+    epaisseurs, prix_par_ep = _thicknesses_and_prices(mat["epaisseurs_mm"])
     e_comp_mm = float(mat.get("epaisseur_complementaire_mm") or 0)
     prix_f = float(mat.get("prix_fourniture_eur_m2") or 0)
     prix_p = float(mat.get("prix_pose_eur_m2") or 0)
@@ -114,6 +135,12 @@ def analyser_materiau(
     # ── Calcul thermique ──────────────────────────────────────────────
     e_theo_mm = calculer_epaisseur_theorique(lambda_val, R_cible)
     e_com_mm, R_obtenu = selectionner_epaisseur_commerciale(epaisseurs, lambda_val, R_cible)
+
+    # Prix de l'épaisseur retenue si renseigné par épaisseur, sinon prix unique (repli)
+    if e_com_mm is not None:
+        _pe = prix_par_ep.get(str(int(e_com_mm)))
+        if _pe:
+            prix_f, prix_p = _pe["pf"], _pe["pp"]
 
     detail = [
         f"R cible = {R_cible} m².K/W",

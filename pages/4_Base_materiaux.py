@@ -47,17 +47,26 @@ for _, row in df_f.iterrows():
             st.markdown("**Thermique**")
             st.write(f"λ : {row.get('lambda_wm K', '—')} W/m.K")
             epaisseurs = row.get("epaisseurs_mm", [])
-            if epaisseurs:
-                st.write(f"Épaisseurs : {', '.join(str(e) for e in epaisseurs)} mm")
+            _ths = [(e.get("e") if isinstance(e, dict) else e) for e in (epaisseurs or [])]
+            if _ths:
+                st.write(f"Épaisseurs : {', '.join(str(e) for e in _ths)} mm")
         with col3:
             st.markdown("**Hygrothermique**")
             st.write(f"µ : {row.get('mu', '—')}")
             statut = row.get("statut_hygro_pierre", "—")
             st.write(f"Statut (mur pierre) : {statut}")
-        st.markdown("**Économique**")
-        c1, c2 = st.columns(2)
-        c1.metric("Fourniture", f"{row.get('prix_fourniture_eur_m2', '—')} €/m²")
-        c2.metric("Pose", f"{row.get('prix_pose_eur_m2', '—')} €/m²")
+        st.markdown("**Économique — prix par épaisseur**")
+        _prix_rows = [d for d in (epaisseurs or []) if isinstance(d, dict)]
+        if _prix_rows:
+            st.dataframe(
+                pd.DataFrame([{"Épaisseur (mm)": d.get("e"),
+                               "Fourniture (€/m²)": d.get("pf"),
+                               "Pose (€/m²)": d.get("pp")} for d in _prix_rows]),
+                use_container_width=True, hide_index=True)
+        else:
+            c1, c2 = st.columns(2)
+            c1.metric("Fourniture", f"{row.get('prix_fourniture_eur_m2', '—')} €/m²")
+            c2.metric("Pose", f"{row.get('prix_pose_eur_m2', '—')} €/m²")
         if row.get("source"):
             st.markdown(f"📚 Source : {row['source']}")
             if row.get("url"):

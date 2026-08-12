@@ -250,47 +250,6 @@ def generer_pdf(
         story.append(_table_comparatif(admissibles, s))
         story.append(Spacer(1, 0.5*cm))
 
-    # Recommandation principale
-    if principale:
-        story.append(Paragraph("✅ Coût + valeur des m² perdus le plus faible", s["H2"]))
-        # Nettoyer le markdown pour reportlab
-        expl = explication_principale.replace("**", "").replace("⚠️", "⚠")
-        story.append(Paragraph(expl, s["Corps"]))
-        story.append(Spacer(1, 0.2*cm))
-        story.append(_table_resultats(principale, s))
-        story.append(Spacer(1, 0.5*cm))
-
-    # Alternative
-    if alternative:
-        story.append(Paragraph("💡 Coût des travaux le plus faible", s["H2"]))
-        expl2 = explication_alternative.replace("**", "").replace("⚠️", "⚠")
-        story.append(Paragraph(expl2, s["Corps"]))
-        story.append(Spacer(1, 0.2*cm))
-        story.append(_table_resultats(alternative, s))
-        story.append(Spacer(1, 0.5*cm))
-
-    # Solutions écartées
-    if ecartees:
-        story.append(Paragraph("Solutions écartées", s["H2"]))
-        e_data = [["Matériau", "Motif"]]
-        for r in ecartees:
-            e_data.append([r.nom, r.motif_exclusion])
-        et = Table(e_data, colWidths=[8*cm, 9*cm])
-        et.setStyle(TableStyle([
-            ("BACKGROUND", (0,0), (-1,0), colors.HexColor("#9E9E9E")),
-            ("TEXTCOLOR",  (0,0), (-1,0), colors.white),
-            ("FONTNAME",   (0,0), (-1,0), "Helvetica-Bold"),
-            ("FONTSIZE",   (0,0), (-1,-1), 9),
-            ("ROWBACKGROUNDS", (0,1), (-1,-1), [LIGHT, colors.white]),
-            ("GRID", (0,0), (-1,-1), 0.5, colors.HexColor("#D8DDE0")),
-            ("LEFTPADDING",  (0,0), (-1,-1), 6),
-            ("RIGHTPADDING", (0,0), (-1,-1), 6),
-            ("TOPPADDING",   (0,0), (-1,-1), 4),
-            ("BOTTOMPADDING",(0,0), (-1,-1), 4),
-        ]))
-        story.append(et)
-        story.append(Spacer(1, 0.5*cm))
-
     # Limites
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#D8DDE0")))
     story.append(Spacer(1, 0.2*cm))
