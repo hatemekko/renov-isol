@@ -149,14 +149,14 @@ if admissibles:
             [0.0, "#1a9850"], [0.25, "#91cf60"], [0.5, "#fee08b"],
             [0.75, "#fc8d59"], [1.0, "#d73027"],
         ],
-        size_max=55,
+        size_max=32,
         opacity=0.55,
     )
 
     fig.update_traces(
         textposition="middle center",
-        textfont=dict(color="#1a1a1a", size=13, family="Arial Black, Arial, sans-serif"),
-        marker=dict(sizemin=6, line=dict(width=1.2, color="#2B3A42")),
+        textfont=dict(color="#1a1a1a", size=11, family="Arial Black, Arial, sans-serif"),
+        marker=dict(sizemin=5, line=dict(width=1.1, color="#2B3A42")),
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
             "%{customdata[1]}<br>"
@@ -174,8 +174,8 @@ if admissibles:
     # Légende de couleur : Faible → Élevé (sans nommer la somme)
     smin, smax = float(df_g["Somme"].min()), float(df_g["Somme"].max())
     colorbar = dict(
-        title=dict(text="Coût + valeur<br>des m² perdus", font=dict(color="#2B3A42")),
-        tickfont=dict(color="#2B3A42"),
+        title=dict(text="Coût + valeur<br>des m² perdus", font=dict(color="#2B3A42", size=11)),
+        tickfont=dict(color="#2B3A42"), thickness=14, len=0.9,
     )
     if smax > smin:
         colorbar.update(tickmode="array", tickvals=[smin, smax],
@@ -197,8 +197,8 @@ if admissibles:
             showline=True, linecolor="#9AA3A8",
         ),
         coloraxis_colorbar=colorbar,
-        margin=dict(l=10, r=10, t=20, b=10),
-        height=520,
+        margin=dict(l=10, r=0, t=20, b=10),
+        height=600,
     )
 
     fig.add_annotation(

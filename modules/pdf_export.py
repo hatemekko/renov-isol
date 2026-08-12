@@ -101,13 +101,13 @@ def _graph_image(admissibles):
     noms = [r.nom for r in admissibles]
 
     vmax = max(vals) if max(vals) > 0 else 1
-    sizes = [140 + 1100 * (v / vmax) for v in vals]
+    sizes = [90 + 800 * (v / vmax) for v in vals]
 
     smin, smax = min(sommes), max(sommes)
     cmap = LinearSegmentedColormap.from_list(
         "gyr", ["#1a9850", "#91cf60", "#fee08b", "#fc8d59", "#d73027"])
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.3), dpi=150)
+    fig, ax = plt.subplots(figsize=(7.4, 5.0), dpi=150)
     if smax > smin:
         sc = ax.scatter(xs, ys, s=sizes, c=sommes, cmap=cmap, vmin=smin, vmax=smax,
                         edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
@@ -195,11 +195,9 @@ def generer_pdf(
     story = []
 
     # En-tête
-    story.append(Paragraph("RENOV'ISOL", s["Titre"]))
-    story.append(Paragraph("Outil d'aide à la décision — Isolation thermique par l'intérieur", s["SousTitre"]))
+    story.append(Paragraph(f"Rapport d'analyse — {nom_projet}", s["Titre"]))
     story.append(HRFlowable(width="100%", thickness=1, color=COPPER))
-    story.append(Spacer(1, 0.3*cm))
-    story.append(Paragraph(f"Rapport d'analyse — {nom_projet}", s["H2"]))
+    story.append(Spacer(1, 0.2*cm))
     story.append(Paragraph(f"Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", s["Limite"]))
     story.append(Spacer(1, 0.4*cm))
 
@@ -243,7 +241,7 @@ def generer_pdf(
             "le moins de surface intérieure.", s["Corps"]))
         img = _graph_image(admissibles)
         if img is not None:
-            story.append(RLImage(img, width=16*cm, height=9.5*cm))
+            story.append(RLImage(img, width=16*cm, height=10.8*cm))
             legende = "   ·   ".join(f"{i} = {r.nom}"
                                      for i, r in enumerate(admissibles, start=1))
             story.append(Paragraph("<b>Repères :</b> " + legende, s["Limite"]))
