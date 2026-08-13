@@ -115,8 +115,13 @@ if admissibles:
     # Le graphique est alimenté par TOUTES les solutions admissibles calculées.
     # Aucune liste de matériaux n'est codée en dur : ajouter un matériau à la base
     # qui passe les conditions l'ajoutera automatiquement ici.
+    # Numérotation liée à la couleur : 1 = le plus vert (coût + valeur le plus faible),
+    # les numéros augmentent vers le rouge (coût + valeur le plus élevé).
+    _ranked = sorted(range(len(admissibles)), key=lambda k: admissibles[k].cout_global)
+    _numero = {idx: rank for rank, idx in enumerate(_ranked, start=1)}
+
     df_g = pd.DataFrame([{
-        "N°": str(i),
+        "N°": str(_numero[i]),
         "Matériau": r.nom,
         "FabRef": (f"{r.fabricant} — {getattr(r, 'reference', '')}"
                    if getattr(r, 'reference', '') else (r.fabricant or "—")),
@@ -128,7 +133,7 @@ if admissibles:
         "Valeur des m² perdus (€)": r.valorisation_surface,
         "Somme": r.cout_global,          # coût des travaux + valeur des m² perdus (comparaison interne)
         "Fiabilité": getattr(r, "fiabilite", "—"),
-    } for i, r in enumerate(admissibles, start=1)])
+    } for i, r in enumerate(admissibles)])
 
     _val = df_g["Valeur des m² perdus (€)"]
     df_g["_taille"] = _val if _val.max() > 0 else 1.0
@@ -226,17 +231,18 @@ if admissibles:
 
     st.plotly_chart(fig, use_container_width=True)
 
-    legende = "   ·   ".join(f"**{i}.** {r.nom}" for i, r in enumerate(admissibles, start=1))
+    legende = "   ·   ".join(f"**{rank}.** {admissibles[idx].nom}"
+                             for rank, idx in enumerate(_ranked, start=1))
     st.markdown("**Repères :**  " + legende)
 
     st.caption(
         "**Comment lire le graphique ?** Chaque bulle est une solution : plus elle est à gauche, "
         "moins les travaux coûtent cher ; plus elle est basse, moins elle fait perdre de surface. "
-        "La taille représente la valeur des m² perdus, la couleur (verte → rouge) compare le "
-        "« coût + valeur des m² perdus » entre solutions. Chaque bulle porte un numéro (voir repères "
-        "ci-dessus). Quand plusieurs solutions sont très proches, leurs bulles sont légèrement "
-        "écartées à l'horizontale pour rester lisibles — les valeurs exactes sont dans l'infobulle "
-        "et dans le tableau ci-dessus."
+        "La taille représente la valeur des m² perdus. **Les numéros suivent la couleur : le n°1 est "
+        "la solution la plus verte** (coût + valeur des m² perdus le plus faible), et les numéros "
+        "augmentent vers le rouge. Quand plusieurs solutions sont très proches, leurs bulles sont "
+        "légèrement écartées à l'horizontale pour rester lisibles — les valeurs exactes sont dans "
+        "l'infobulle et dans le tableau ci-dessus."
     )
 else:
     st.info("Aucune solution admissible à afficher. Ajustez le R cible ou la composition du mur.")

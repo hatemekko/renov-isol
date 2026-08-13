@@ -134,10 +134,16 @@ def _graph_image(admissibles):
         ax.scatter(x_plot, ys, s=sizes, c="#1a9850",
                    edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
 
+    # Numéro lié à la couleur : 1 = le plus vert (somme la plus faible) → vers le rouge
+    _ranked = sorted(range(len(sommes)), key=lambda k: sommes[k])
+    numeros = [0] * len(sommes)
+    for _rank, _idx in enumerate(_ranked, start=1):
+        numeros[_idx] = _rank
+
     # Numéro au centre de chaque bulle (contour blanc pour rester lisible sur toute couleur)
-    for i, (x, y) in enumerate(zip(x_plot, ys), start=1):
-        ax.annotate(str(i), (x, y), fontsize=8, fontweight="bold", color="#1a1a1a",
-                    ha="center", va="center", zorder=5,
+    for i in range(len(x_plot)):
+        ax.annotate(str(numeros[i]), (x_plot[i], ys[i]), fontsize=8, fontweight="bold",
+                    color="#1a1a1a", ha="center", va="center", zorder=5,
                     path_effects=[pe.withStroke(linewidth=2.2, foreground="white")])
 
     ax.set_xlabel("Coût des travaux (€)", fontsize=10, color="#2B3A42")
@@ -256,9 +262,9 @@ def generer_pdf(
         img = _graph_image(admissibles)
         if img is not None:
             story.append(RLImage(img, width=16*cm, height=10.8*cm))
-            legende = "   ·   ".join(f"{i} = {r.nom}"
-                                     for i, r in enumerate(admissibles, start=1))
-            story.append(Paragraph("<b>Repères :</b> " + legende, s["Limite"]))
+            _rk = sorted(admissibles, key=lambda r: r.cout_global)
+            legende = "   ·   ".join(f"{rank} = {r.nom}" for rank, r in enumerate(_rk, start=1))
+            story.append(Paragraph("<b>Repères (n°1 = le plus vert) :</b> " + legende, s["Limite"]))
         story.append(Paragraph(
             "Comment lire le graphique : plus une solution est à gauche, moins les travaux "
             "coûtent cher ; plus elle est basse, moins elle fait perdre de surface intérieure.",
