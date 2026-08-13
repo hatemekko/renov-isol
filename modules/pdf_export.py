@@ -107,9 +107,23 @@ def _graph_image(admissibles):
     cmap = LinearSegmentedColormap.from_list(
         "gyr", ["#1a9850", "#91cf60", "#fee08b", "#fc8d59", "#d73027"])
 
+    # Dodge : écarter horizontalement les bulles trop proches (coût ET surface voisins)
+    from collections import defaultdict
+    _rx = (max(xs) - min(xs)) or (max(xs) if xs else 1.0)
+    _ry = (max(ys) - min(ys)) or 1.0
+    _groups = defaultdict(list)
+    for _i in range(len(xs)):
+        _groups[(round(xs[_i] / (_rx * 0.07)), round(ys[_i] / (_ry * 0.09)))].append(_i)
+    x_plot = list(xs)
+    _step = _rx * 0.06
+    for _idxs in _groups.values():
+        if len(_idxs) > 1:
+            for _j, _i in enumerate(sorted(_idxs)):
+                x_plot[_i] = xs[_i] + (_j - (len(_idxs) - 1) / 2.0) * _step
+
     fig, ax = plt.subplots(figsize=(7.4, 5.0), dpi=150)
     if smax > smin:
-        sc = ax.scatter(xs, ys, s=sizes, c=sommes, cmap=cmap, vmin=smin, vmax=smax,
+        sc = ax.scatter(x_plot, ys, s=sizes, c=sommes, cmap=cmap, vmin=smin, vmax=smax,
                         edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
         cb = fig.colorbar(sc, ax=ax)
         cb.set_label("Coût + valeur des m² perdus", fontsize=8, color="#2B3A42")
@@ -117,11 +131,11 @@ def _graph_image(admissibles):
         cb.set_ticklabels(["Faible", "Élevé"])
         cb.ax.tick_params(labelsize=7, colors="#2B3A42")
     else:
-        ax.scatter(xs, ys, s=sizes, c="#1a9850",
+        ax.scatter(x_plot, ys, s=sizes, c="#1a9850",
                    edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
 
     # Numéro au centre de chaque bulle (contour blanc pour rester lisible sur toute couleur)
-    for i, (x, y) in enumerate(zip(xs, ys), start=1):
+    for i, (x, y) in enumerate(zip(x_plot, ys), start=1):
         ax.annotate(str(i), (x, y), fontsize=8, fontweight="bold", color="#1a1a1a",
                     ha="center", va="center", zorder=5,
                     path_effects=[pe.withStroke(linewidth=2.2, foreground="white")])

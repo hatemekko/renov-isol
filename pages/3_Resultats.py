@@ -130,14 +130,32 @@ if admissibles:
         "Fiabilité": getattr(r, "fiabilite", "—"),
     } for i, r in enumerate(admissibles, start=1)])
 
-    # Taille des bulles = valeur des m² perdus. Si tout est à 0 (prix immobilier = 0),
-    # on évite des bulles invisibles avec une taille constante.
     _val = df_g["Valeur des m² perdus (€)"]
     df_g["_taille"] = _val if _val.max() > 0 else 1.0
 
+    # Dodge : quand des solutions ont un coût ET une surface très proches, leurs bulles se
+    # chevauchent. On décale légèrement leur position horizontale (en éventail) pour les rendre
+    # lisibles. Les valeurs exactes restent dans l'infobulle et le tableau ci-dessus.
+    import numpy as np
+    from collections import defaultdict
+    _xs = df_g["Coût des travaux (€)"].to_numpy(dtype=float)
+    _ys = df_g["Surface perdue (m²)"].to_numpy(dtype=float)
+    _rx = float(_xs.max() - _xs.min()) or max(float(_xs.max()), 1.0)
+    _ry = float(_ys.max() - _ys.min()) or 1.0
+    _groups = defaultdict(list)
+    for _i in range(len(_xs)):
+        _groups[(round(_xs[_i] / (_rx * 0.07)), round(_ys[_i] / (_ry * 0.09)))].append(_i)
+    _xp = _xs.copy()
+    _step = _rx * 0.06
+    for _idxs in _groups.values():
+        if len(_idxs) > 1:
+            for _j, _i in enumerate(sorted(_idxs)):
+                _xp[_i] = _xs[_i] + (_j - (len(_idxs) - 1) / 2.0) * _step
+    df_g["x_plot"] = _xp
+
     fig = px.scatter(
         df_g,
-        x="Coût des travaux (€)",
+        x="x_plot",
         y="Surface perdue (m²)",
         size="_taille",
         color="Somme",
@@ -149,8 +167,8 @@ if admissibles:
             [0.0, "#1a9850"], [0.25, "#91cf60"], [0.5, "#fee08b"],
             [0.75, "#fc8d59"], [1.0, "#d73027"],
         ],
-        size_max=32,
-        opacity=0.55,
+        size_max=34,
+        opacity=0.6,
     )
 
     fig.update_traces(
@@ -171,15 +189,13 @@ if admissibles:
         ),
     )
 
-    # Légende de couleur : Faible → Élevé (sans nommer la somme)
     smin, smax = float(df_g["Somme"].min()), float(df_g["Somme"].max())
     colorbar = dict(
         title=dict(text="Coût + valeur<br>des m² perdus", font=dict(color="#2B3A42", size=11)),
         tickfont=dict(color="#2B3A42"), thickness=14, len=0.9,
     )
     if smax > smin:
-        colorbar.update(tickmode="array", tickvals=[smin, smax],
-                        ticktext=["Faible", "Élevé"])
+        colorbar.update(tickmode="array", tickvals=[smin, smax], ticktext=["Faible", "Élevé"])
 
     fig.update_layout(
         plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
@@ -198,7 +214,7 @@ if admissibles:
         ),
         coloraxis_colorbar=colorbar,
         margin=dict(l=10, r=0, t=20, b=10),
-        height=600,
+        height=560,
     )
 
     fig.add_annotation(
@@ -214,12 +230,13 @@ if admissibles:
     st.markdown("**Repères :**  " + legende)
 
     st.caption(
-        "**Comment lire le graphique ?** Plus une solution est à gauche, plus son coût "
-        "de travaux est faible. Plus elle est basse, moins elle fait perdre de surface "
-        "intérieure. La taille de la bulle représente la valeur des m² perdus selon le "
-        "prix immobilier renseigné. La couleur permet de comparer le coût des travaux et "
-        "cette valeur entre les solutions du projet. Les bulles sont numérotées (voir repères "
-        "ci-dessus) et semi-transparentes pour rester lisibles quand des solutions se superposent."
+        "**Comment lire le graphique ?** Chaque bulle est une solution : plus elle est à gauche, "
+        "moins les travaux coûtent cher ; plus elle est basse, moins elle fait perdre de surface. "
+        "La taille représente la valeur des m² perdus, la couleur (verte → rouge) compare le "
+        "« coût + valeur des m² perdus » entre solutions. Chaque bulle porte un numéro (voir repères "
+        "ci-dessus). Quand plusieurs solutions sont très proches, leurs bulles sont légèrement "
+        "écartées à l'horizontale pour rester lisibles — les valeurs exactes sont dans l'infobulle "
+        "et dans le tableau ci-dessus."
     )
 else:
     st.info("Aucune solution admissible à afficher. Ajustez le R cible ou la composition du mur.")
