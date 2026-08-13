@@ -151,11 +151,11 @@ if admissibles:
     for _i in range(len(_xs)):
         _groups[(round(_xs[_i] / (_rx * 0.07)), round(_ys[_i] / (_ry * 0.09)))].append(_i)
     _xp = _xs.copy()
-    _step = _rx * 0.06
+    _factor = 0.09  # écartement en % (régulier aussi en échelle log)
     for _idxs in _groups.values():
         if len(_idxs) > 1:
             for _j, _i in enumerate(sorted(_idxs)):
-                _xp[_i] = _xs[_i] + (_j - (len(_idxs) - 1) / 2.0) * _step
+                _xp[_i] = _xs[_i] * (1.0 + (_j - (len(_idxs) - 1) / 2.0) * _factor)
     df_g["x_plot"] = _xp
 
     fig = px.scatter(
@@ -206,8 +206,9 @@ if admissibles:
         plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
         font=dict(color="#2B3A42", size=13),
         xaxis=dict(
-            title=dict(text="Coût des travaux (€)", font=dict(color="#2B3A42", size=14)),
-            tickfont=dict(color="#2B3A42"), tickformat=",.0f",
+            title=dict(text="Coût des travaux (€) — échelle logarithmique",
+                       font=dict(color="#2B3A42", size=14)),
+            type="log", tickfont=dict(color="#2B3A42"), tickformat=",.0f",
             gridcolor="#E6E9EB", zerolinecolor="#C9CFD3",
             showline=True, linecolor="#9AA3A8",
         ),
@@ -238,6 +239,8 @@ if admissibles:
     st.caption(
         "**Comment lire le graphique ?** Chaque bulle est une solution : plus elle est à gauche, "
         "moins les travaux coûtent cher ; plus elle est basse, moins elle fait perdre de surface. "
+        "L'axe des coûts est en **échelle logarithmique** (graduations 2 500, 5 000, 10 000, 20 000…) : "
+        "les écarts entre solutions abordables restent visibles même en présence d'une solution très chère. "
         "La taille représente la valeur des m² perdus. **Les numéros suivent la couleur : le n°1 est "
         "la solution la plus verte** (coût + valeur des m² perdus le plus faible), et les numéros "
         "augmentent vers le rouge. Quand plusieurs solutions sont très proches, leurs bulles sont "

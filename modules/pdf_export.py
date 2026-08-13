@@ -8,7 +8,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
 from matplotlib.colors import Normalize, LinearSegmentedColormap
 
 from reportlab.lib.pagesizes import A4
@@ -115,11 +115,11 @@ def _graph_image(admissibles):
     for _i in range(len(xs)):
         _groups[(round(xs[_i] / (_rx * 0.07)), round(ys[_i] / (_ry * 0.09)))].append(_i)
     x_plot = list(xs)
-    _step = _rx * 0.06
+    _factor = 0.09  # écartement en % (régulier aussi en échelle log)
     for _idxs in _groups.values():
         if len(_idxs) > 1:
             for _j, _i in enumerate(sorted(_idxs)):
-                x_plot[_i] = xs[_i] + (_j - (len(_idxs) - 1) / 2.0) * _step
+                x_plot[_i] = xs[_i] * (1.0 + (_j - (len(_idxs) - 1) / 2.0) * _factor)
 
     fig, ax = plt.subplots(figsize=(7.4, 5.0), dpi=150)
     if smax > smin:
@@ -146,11 +146,15 @@ def _graph_image(admissibles):
                     color="#1a1a1a", ha="center", va="center", zorder=5,
                     path_effects=[pe.withStroke(linewidth=2.2, foreground="white")])
 
-    ax.set_xlabel("Coût des travaux (€)", fontsize=10, color="#2B3A42")
+    ax.set_xlabel("Coût des travaux (€) — échelle logarithmique", fontsize=10, color="#2B3A42")
     ax.set_ylabel("Surface perdue (m²)", fontsize=10, color="#2B3A42")
+    ax.set_xscale("log")
+    ax.xaxis.set_major_locator(LogLocator(base=10, subs=(1.0, 2.0, 3.0, 5.0), numticks=12))
+    ax.xaxis.set_minor_locator(LogLocator(base=10, subs=tuple(range(1, 10)), numticks=60))
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.xaxis.set_minor_formatter(NullFormatter())
     ax.grid(True, color="#E6E9EB", linewidth=0.6, zorder=0)
     ax.tick_params(colors="#2B3A42", labelsize=8)
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
     for spine in ax.spines.values():
         spine.set_color("#9AA3A8")
 
