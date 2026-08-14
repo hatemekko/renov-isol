@@ -6,6 +6,7 @@ La clé de service est chargée depuis st.secrets (jamais dans le code).
 import json
 import streamlit as st
 import gspread
+from gspread.utils import ValueRenderOption
 from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import datetime
@@ -59,18 +60,44 @@ def _ensure_header(ws, cols: list[str]):
 
 # ─── Matériaux ─────────────────────────────────────────────────────────────────
 
+def _to_float(v) -> float:
+    """Convertit en float en acceptant la virgule OU le point (et les espaces/milliers)."""
+    if v is None or v == "":
+        return 0.0
+    if isinstance(v, (int, float)):
+        return float(v)
+    s = (str(v).strip()
+         .replace("\u202f", "").replace("\xa0", "").replace(" ", "")
+         .replace(",", "."))
+    try:
+        return float(s)
+    except ValueError:
+        return 0.0
+
+
 def lire_materiaux(actif_seulement: bool = True) -> pd.DataFrame:
     ws = _get_sheet(SHEET_MATERIAUX)
-    data = ws.get_all_records()
+    # UNFORMATTED_VALUE : on récupère la valeur brute (le nombre) et non l'affichage
+    # localisé « 0,032 » ; numericise_ignore=['all'] : on désactive la conversion auto de
+    # gspread (qui lit la virgule française comme séparateur de milliers → 0,032 devient 32).
+    data = ws.get_all_records(value_render_option=ValueRenderOption.unformatted,
+                              numericise_ignore=["all"])
     if not data:
         return pd.DataFrame(columns=COLS_MATERIAUX)
     df = pd.DataFrame(data)
-    # Convertir epaisseurs_mm stocké en JSON string
+    # epaisseurs_mm stocké en JSON string
     df["epaisseurs_mm"] = df["epaisseurs_mm"].apply(
-        lambda x: json.loads(x) if isinstance(x, str) and x.startswith("[") else []
+        lambda x: json.loads(x) if isinstance(x, str) and x.strip().startswith("[")
+        else (x if isinstance(x, list) else [])
     )
+    # Colonnes numériques : lecture tolérante (virgule ou point)
+    for _c in ["lambda_wm K", "mu", "prix_fourniture_eur_m2", "prix_pose_eur_m2",
+               "epaisseur_complementaire_mm"]:
+        if _c in df.columns:
+            df[_c] = df[_c].apply(_to_float)
     if actif_seulement:
-        df = df[df["actif"].astype(str) == "1"]
+        df = df[df["actif"].apply(
+            lambda x: str(x).strip() in ("1", "1.0", "True", "true", "oui", "Oui", "VRAI"))]
     return df.reset_index(drop=True)
 
 
