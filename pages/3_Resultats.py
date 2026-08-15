@@ -31,43 +31,6 @@ st.markdown(f"**Composition des murs :** {params['composition_mur']}  |  "
 st.markdown("---")
 
 
-def badge_hygro(statut: str) -> str:
-    mapping = {
-        "Compatible":    '<span class="badge-compatible">Compatible</span>',
-        "À vérifier":   '<span class="badge-averifier">À vérifier</span>',
-        "Non compatible":'<span class="badge-incompatible">Non compatible</span>',
-    }
-    return mapping.get(statut, statut)
-
-
-def afficher_carte(r, titre: str, css_extra: str = ""):
-    st.markdown(
-        f'<div class="card {css_extra}"><h3>{titre}</h3></div>',
-        unsafe_allow_html=True,
-    )
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Matériau", r.nom)
-        st.metric("λ (W/m.K)", r.lambda_val)
-        st.metric("Épaisseur retenue", f"{r.e_commerciale_mm} mm")
-        st.metric("R obtenu", f"{r.R_obtenu} m².K/W")
-    with col2:
-        st.metric("Surface perdue", f"{r.surface_consommee_m2} m²")
-        st.metric("Coût des travaux", f"{r.cout_initial:,.0f} €")
-        st.metric("Valeur des m² perdus", f"{r.valorisation_surface:,.0f} €")
-        st.metric("Coût + valeur des m² perdus", f"{r.cout_global:,.0f} €")
-    with col3:
-        st.markdown("**Statut hygrothermique**")
-        st.markdown(badge_hygro(r.statut_hygro), unsafe_allow_html=True)
-        if r.statut_hygro == "À vérifier":
-            st.warning("Une étude hygrothermique est recommandée.")
-        if r.source:
-            st.markdown(f"**Source :** {r.source}")
-            if r.url:
-                st.markdown(f"[Consulter]({r.url})")
-    st.markdown(f"*{expl_p if css_extra == '' else expl_a}*")
-
-
 # ── Explication des résultats ──────────────────────────────────────────────────
 if not admissibles:
     st.error("Aucune solution admissible n'a été trouvée pour les paramètres saisis. "
@@ -99,7 +62,6 @@ if admissibles:
             "Surface perdue (m²)": r.surface_consommee_m2,
             "Valeur des m² perdus (€)": r.valorisation_surface,
             "Coût + valeur des m² perdus (€)": r.cout_global,
-            "Hygro.": r.statut_hygro,
         })
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
@@ -107,6 +69,64 @@ if admissibles:
     st.download_button("⬇️ Exporter CSV", csv, "renov_isol_resultats.csv", "text/csv")
 else:
     st.warning("Aucune solution admissible.")
+
+# ── Comportement hygrothermique (HYGROBA) ──────────────────────────────────────
+st.markdown("---")
+st.subheader("Comportement hygrothermique (HYGROBA)")
+st.caption(
+    f"Mur : **{params.get('composition_mur', '—')}** · finition extérieure : "
+    f"**{params.get('etat_exterieur', '—')}** → côté extérieur classé "
+    f"**{params.get('classe_exterieur', '—')}**. La configuration croise ce côté extérieur avec "
+    "la classe P/E de chaque isolant. **Seules les configurations privilégiées par HYGROBA sont "
+    "retenues** dans la comparaison ci-dessus ; les autres apparaissent plus bas dans "
+    "« Solutions non retenues »."
+)
+if admissibles:
+    _emoji = {"vert": "🟢", "orange": "🟠", "rouge": "🔴"}
+    _stat = {"privilégier": "✅ À privilégier", "vigilance": "⚠️ Vigilance"}
+    hrows = []
+    for r in admissibles:
+        if r.hygro_exploitable and r.hygro_criteres:
+            c = r.hygro_criteres
+            hrows.append({
+                "Matériau": r.nom,
+                "Classe P/E": r.classe_hygrique or "—",
+                "Configuration": r.hygro_config,
+                "Statut HYGROBA": _stat.get(r.hygro_statut, r.hygro_statut or "—"),
+                "Quantité d'eau": f"{_emoji.get(c['eau'], '')} {c['eau'].capitalize()}",
+                "Capacité de séchage": f"{_emoji.get(c['sechage'], '')} {c['sechage'].capitalize()}",
+                "Condensation": f"{_emoji.get(c['condensation'], '')} {c['condensation'].capitalize()}",
+            })
+        else:
+            hrows.append({
+                "Matériau": r.nom,
+                "Classe P/E": r.classe_hygrique or "—",
+                "Configuration": r.hygro_config or "—",
+                "Statut HYGROBA": "Vérification complémentaire",
+                "Quantité d'eau": "Vérification hygrothermique complémentaire nécessaire",
+                "Capacité de séchage": "",
+                "Condensation": "",
+            })
+    st.dataframe(pd.DataFrame(hrows), use_container_width=True, hide_index=True)
+    # Alertes de vigilance (ex. pierre calcaire dure : faible capacité de séchage)
+    for a in sorted({r.hygro_alerte for r in admissibles if r.hygro_alerte}):
+        st.warning(a)
+
+# ── Solutions non retenues ─────────────────────────────────────────────────────
+if ecartees:
+    st.markdown("---")
+    st.subheader("Solutions non retenues")
+    st.caption("Ces solutions ne figurent pas dans la comparaison ci-dessus. Elles ne sont pas "
+               "« interdites » : elles sont écartées par le R cible, la compatibilité ITI, "
+               "ou le filtre de présélection HYGROBA pour cette configuration de paroi.")
+    st.dataframe(
+        pd.DataFrame([{
+            "Matériau": r.nom,
+            "Classe P/E": r.classe_hygrique or "—",
+            "Configuration": r.hygro_config or "—",
+            "Motif": r.motif_exclusion,
+        } for r in ecartees]),
+        use_container_width=True, hide_index=True)
 
 # ── Graphique d'aide à la décision ─────────────────────────────────────────────
 st.subheader("Comparaison des solutions d'ITI")

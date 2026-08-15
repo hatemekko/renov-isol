@@ -3,6 +3,8 @@ Fonctions de calcul — toutes les formules sont explicites et testables.
 """
 from dataclasses import dataclass, field
 
+from modules.hygro import evaluer_hygroba, MOTIF_HYGROBA_ECARTE
+
 
 @dataclass
 class ResultatMateriau:
@@ -11,8 +13,6 @@ class ResultatMateriau:
     fabricant: str
     lambda_val: float
     mu: float
-    statut_hygro: str          # 'Compatible' | 'À vérifier' | 'Non compatible'
-    justification_hygro: str
 
     R_cible: float
     e_theorique_mm: float
@@ -40,6 +40,15 @@ class ResultatMateriau:
 
     reference: str = ""
     fiabilite: str = "—"
+    classe_hygrique: str = ""
+    compatibilite_iti: str = ""
+    hygro_config: str = ""
+    hygro_exploitable: bool = False
+    hygro_message: str = ""
+    hygro_criteres: dict = field(default_factory=dict)
+    hygro_retenu: bool | None = None
+    hygro_statut: str = ""
+    hygro_alerte: str = ""
 
     admissible: bool = True
     motif_exclusion: str = ""
@@ -119,8 +128,8 @@ def analyser_materiau(
     surface_murs_m2: float,
     lineaire_m: float,
     prix_m2_logement: float,
-    statut_hygro_resolu: str,
-    justif_hygro: str,
+    type_mur: str,
+    classe_ext,
 ) -> ResultatMateriau:
     """
     Calcule tous les indicateurs pour un matériau donné.
@@ -131,6 +140,12 @@ def analyser_materiau(
     e_comp_mm = float(mat.get("epaisseur_complementaire_mm") or 0)
     prix_f = float(mat.get("prix_fourniture_eur_m2") or 0)
     prix_p = float(mat.get("prix_pose_eur_m2") or 0)
+
+    # ── Hygrothermique HYGROBA (aucune élimination sur cette base à ce stade) ──
+    classe_hygrique = str(mat.get("classe_hygrique") or "").strip().upper()
+    compatibilite_iti = str(mat.get("compatibilite_iti") or "").strip()
+    hygro = evaluer_hygroba(type_mur, classe_ext, classe_hygrique)
+    iti_non = compatibilite_iti.lower() in ("non", "non compatible", "non adapté", "non adaptée")
 
     # ── Calcul thermique ──────────────────────────────────────────────
     e_theo_mm = calculer_epaisseur_theorique(lambda_val, R_cible)
@@ -158,7 +173,6 @@ def analyser_materiau(
         return ResultatMateriau(
             nom=mat["nom"], famille=mat["famille"], fabricant=mat["fabricant"],
             lambda_val=lambda_val, mu=float(mat.get("mu") or 0),
-            statut_hygro=statut_hygro_resolu, justification_hygro=justif_hygro,
             R_cible=R_cible, e_theorique_mm=e_theo_mm,
             e_commerciale_mm=0, R_obtenu=0,
             epaisseur_complementaire_mm=e_comp_mm,
@@ -169,6 +183,10 @@ def analyser_materiau(
             prix_m2_logement=prix_m2_logement, valorisation_surface=0,
             cout_global=0, source=mat.get("source", ""), url=mat.get("url", ""),
             reference=mat.get("reference", ""), fiabilite=str(mat.get("fiabilite") or "—"),
+            classe_hygrique=classe_hygrique, compatibilite_iti=compatibilite_iti,
+            hygro_config=(hygro["config"] or ""), hygro_exploitable=hygro["exploitable"],
+            hygro_message=hygro["message"], hygro_criteres=(hygro["criteres"] or {}),
+            hygro_retenu=hygro["retenu"], hygro_statut=hygro["statut"], hygro_alerte=hygro["alerte"],
             admissible=False, motif_exclusion=motif, detail_calculs=detail,
         )
 
@@ -177,9 +195,12 @@ def analyser_materiau(
         f"  → R obtenu = {e_com_mm/1000:.3f} / {lambda_val} = {R_obtenu} m².K/W"
     )
 
-    if statut_hygro_resolu == "Non compatible":
+    if iti_non:
         admissible = False
-        motif = "Non compatible hygrothermiquement avec les murs existants"
+        motif = "Solution déclarée non adaptée à l'ITI (fiche matériau)"
+    elif hygro["exploitable"] and hygro["retenu"] is False:
+        admissible = False
+        motif = MOTIF_HYGROBA_ECARTE
 
     # ── Calcul géométrique ────────────────────────────────────────────
     e_totale_mm = e_com_mm + e_comp_mm
@@ -206,7 +227,10 @@ def analyser_materiau(
     return ResultatMateriau(
         nom=mat["nom"], famille=mat["famille"], fabricant=mat["fabricant"],
         lambda_val=lambda_val, mu=float(mat.get("mu") or 0),
-        statut_hygro=statut_hygro_resolu, justification_hygro=justif_hygro,
+        classe_hygrique=classe_hygrique, compatibilite_iti=compatibilite_iti,
+        hygro_config=(hygro["config"] or ""), hygro_exploitable=hygro["exploitable"],
+        hygro_message=hygro["message"], hygro_criteres=(hygro["criteres"] or {}),
+        hygro_retenu=hygro["retenu"], hygro_statut=hygro["statut"], hygro_alerte=hygro["alerte"],
         R_cible=R_cible, e_theorique_mm=e_theo_mm,
         e_commerciale_mm=e_com_mm, R_obtenu=R_obtenu,
         epaisseur_complementaire_mm=e_comp_mm,

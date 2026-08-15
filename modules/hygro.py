@@ -1,114 +1,128 @@
 """
-Compatibilité hygrothermique mur/isolant.
-Règle basée sur la composition des murs existants et le facteur µ de l'isolant.
+Compatibilité hygrothermique — méthode HYGROBA (ITI).
 
-Sources : ATHEBA ; règles Th-U (RT 2012) ; littérature PROFEEL/CREBA.
+La configuration est déterminée par :
+  type de mur + état extérieur (P/E) + classe hygrique de la solution d'ITI (P/E).
+
+- La classe P/E de l'isolant est SAISIE dans la fiche matériau (jamais déduite de µ ou Sd).
+- Aucun calcul hygrothermique n'est refait : on lit les résultats HYGROBA de la matrice.
+- À ce stade : on affiche les 3 résultats HYGROBA, SANS éliminer de solution sur cette base.
+  (La règle vert/orange/rouge → retenu/vigilance/écarté sera définie plus tard.)
 """
 
-# Seuils µ
-MU_PERSPIRANT_MAX = 10    # µ ≤ 10 → perspirant
-MU_SEMI_MAX       = 30    # 10 < µ ≤ 30 → semi-étanche
-# µ > 30 → pare-vapeur
-
-
-COMPOSITIONS_PERSPIRANTES = [
-    "pierre de taille",
-    "brique pleine",
-    "brique de terre crue",
-    "pisé",
-    "torchis",
-    "colombage",
-    "calcaire",
-    "meulière",
-    "silex",
+# ── Types de murs (le dernier n'est pas couvert par HYGROBA) ────────────────────
+TYPES_MURS = [
+    "Terre crue",
+    "Brique de terre cuite",
+    "Pan de bois / torchis",
+    "Pierre calcaire dure",
+    "Autre / non couvert par HYGROBA",
 ]
 
-COMPOSITIONS_SEMI_ETANCHES = [
-    "béton",
-    "parpaing",
-    "béton cellulaire",
-    "mâchefer",
-    "brique creuse",
+# ── État / finition extérieure de la paroi ──────────────────────────────────────
+ETATS_EXTERIEUR = [
+    "Mur nu / matériau apparent",
+    "Enduit ou revêtement perméable à l'humidité",
+    "Enduit ou revêtement peu perméable / étanche",
+    "Inconnu",
 ]
 
 
-def _classer_mur(composition: str) -> str:
-    """Retourne 'perspirant', 'semi_etanche' ou 'inconnu'."""
-    c = composition.lower().strip()
-    for kw in COMPOSITIONS_PERSPIRANTES:
-        if kw in c:
-            return "perspirant"
-    for kw in COMPOSITIONS_SEMI_ETANCHES:
-        if kw in c:
-            return "semi_etanche"
-    return "inconnu"
+def classe_exterieur(etat: str):
+    """Renvoie 'P', 'E' ou None (inconnu) selon la finition extérieure réelle."""
+    if etat in ("Mur nu / matériau apparent",
+                "Enduit ou revêtement perméable à l'humidité"):
+        return "P"
+    if etat == "Enduit ou revêtement peu perméable / étanche":
+        return "E"
+    return None  # Inconnu → pas de classement automatique
 
 
-def _classer_isolant(mu: float) -> str:
-    """Retourne 'perspirant', 'semi_etanche' ou 'pare_vapeur'."""
-    if mu <= MU_PERSPIRANT_MAX:
-        return "perspirant"
-    if mu <= MU_SEMI_MAX:
-        return "semi_etanche"
-    return "pare_vapeur"
+# ── Classe hygrique de la solution d'ITI (saisie par l'utilisateur) ─────────────
+CLASSES_HYGRIQUES = ["", "P", "E"]   # "" = non renseignée
+
+# ── Critères HYGROBA affichés ───────────────────────────────────────────────────
+CRITERES_HYGRO = [
+    ("eau", "Quantité d'eau"),
+    ("sechage", "Capacité de séchage"),
+    ("condensation", "Condensation"),
+]
+
+# ── Matrice HYGROBA : mur → configuration (extérieur-intérieur) → 3 critères ─────
+#    Couleurs possibles : "vert" | "orange" | "rouge"
+HYGROBA = {
+    "Terre crue": {
+        "P-P": {"eau": "vert",   "sechage": "orange", "condensation": "vert"},
+        "P-E": {"eau": "vert",   "sechage": "orange", "condensation": "vert"},
+        "E-P": {"eau": "orange", "sechage": "rouge",  "condensation": "orange"},
+        "E-E": {"eau": "orange", "sechage": "rouge",  "condensation": "vert"},
+    },
+    "Brique de terre cuite": {
+        "P-P": {"eau": "vert",   "sechage": "orange", "condensation": "vert"},
+        "P-E": {"eau": "vert",   "sechage": "rouge",  "condensation": "vert"},
+        "E-P": {"eau": "orange", "sechage": "rouge",  "condensation": "orange"},
+        "E-E": {"eau": "orange", "sechage": "rouge",  "condensation": "vert"},
+    },
+    "Pan de bois / torchis": {
+        "P-P": {"eau": "vert",   "sechage": "orange", "condensation": "vert"},
+        "P-E": {"eau": "vert",   "sechage": "orange", "condensation": "vert"},
+        "E-P": {"eau": "orange", "sechage": "orange", "condensation": "orange"},
+        "E-E": {"eau": "vert",   "sechage": "rouge",  "condensation": "vert"},
+    },
+    "Pierre calcaire dure": {
+        "P-P": {"eau": "orange", "sechage": "rouge", "condensation": "orange"},
+        "P-E": {"eau": "orange", "sechage": "rouge", "condensation": "orange"},
+        "E-P": {"eau": "orange", "sechage": "rouge", "condensation": "orange"},
+        "E-E": {"eau": "rouge",  "sechage": "rouge", "condensation": "orange"},
+    },
+}
+
+MESSAGE_VERIF = "Vérification hygrothermique complémentaire nécessaire."
+
+# ── Présélection HYGROBA : configurations CONSERVÉES par type de mur ─────────────
+# Valeur = statut de la configuration retenue : "privilégier" ou "vigilance".
+# Toute configuration NON listée pour un mur est écartée du comparatif principal
+# (mais reste visible dans « Solutions non retenues » — jamais présentée comme interdite).
+PRESELECTION_HYGROBA = {
+    "Terre crue":            {"P-P": "privilégier", "P-E": "privilégier"},
+    "Brique de terre cuite": {"P-P": "privilégier"},
+    "Pan de bois / torchis": {"P-P": "privilégier", "P-E": "privilégier"},
+    "Pierre calcaire dure":  {"P-P": "vigilance", "P-E": "vigilance", "E-P": "vigilance"},
+}
+
+MOTIF_HYGROBA_ECARTE = ("Solution non retenue par le filtre HYGROBA pour cette "
+                        "configuration de paroi.")
+
+ALERTE_SECHAGE = ("Point de vigilance HYGROBA : capacité de séchage limitée signalée "
+                  "pour ce type de mur.")
 
 
-def resoudre_statut(
-    composition_mur: str,
-    mu: float,
-    statut_base: str,
-    justif_base: str,
-    type_mur_force: str = "",
-) -> tuple[str, str]:
+def evaluer_hygroba(type_mur: str, classe_ext, classe_isolant) -> dict:
     """
-    Détermine le statut hygrothermique effectif en croisant :
-    - la composition des murs existants
-    - le µ de l'isolant
-    - le statut documenté dans la base (prioritaire si 'Non compatible')
+    Détermine la configuration HYGROBA et applique la présélection par type de mur.
 
-    Retourne (statut, justification).
-    Statuts possibles : 'Compatible' | 'À vérifier' | 'Non compatible'
+    Retour :
+      {
+        "exploitable": bool,        # une case HYGROBA correspond
+        "config": "P-E" | None,
+        "criteres": {...} | None,   # les 3 couleurs (traçabilité)
+        "retenu": bool | None,      # True = privilégiée ; False = écartée ; None = non exploitable
+        "statut": "privilégier" | "vigilance" | "",
+        "alerte": str,              # message de vigilance éventuel
+        "message": str,             # message si non exploitable
+      }
     """
-    # Si la base dit Non compatible, c'est définitif
-    if statut_base == "Non compatible":
-        return "Non compatible", justif_base or "Non compatible selon la fiche technique."
-
-    type_mur = type_mur_force or _classer_mur(composition_mur)
-    type_isolant = _classer_isolant(mu)
-
-    # Matrice de décision
-    matrice = {
-        # (type_mur, type_isolant) : (statut, justification)
-        ("perspirant",   "perspirant")   : ("Compatible",
-            f"Mur perspirant ({composition_mur}) + isolant perspirant (µ={mu}) : "
-            "compatible, le mur peut sécher librement vers l'intérieur."),
-        ("perspirant",   "semi_etanche") : ("À vérifier",
-            f"Mur perspirant ({composition_mur}) + isolant semi-étanche (µ={mu}) : "
-            "à vérifier par une étude hygrothermique (risque de condensation à l'interface)."),
-        ("perspirant",   "pare_vapeur")  : ("Non compatible",
-            f"Mur perspirant ({composition_mur}) + isolant pare-vapeur (µ={mu}) : "
-            "non compatible. Le mur ne peut plus sécher vers l'intérieur, "
-            "risque de condensation et de dégradation."),
-        ("semi_etanche", "perspirant")   : ("Compatible",
-            f"Mur semi-étanche ({composition_mur}) + isolant perspirant (µ={mu}) : compatible."),
-        ("semi_etanche", "semi_etanche") : ("Compatible",
-            f"Mur semi-étanche ({composition_mur}) + isolant semi-étanche (µ={mu}) : compatible."),
-        ("semi_etanche", "pare_vapeur")  : ("À vérifier",
-            f"Mur semi-étanche ({composition_mur}) + isolant pare-vapeur (µ={mu}) : "
-            "à vérifier selon l'hygrométrie intérieure."),
-        ("inconnu",      "perspirant")   : ("Compatible",
-            f"Composition de mur non identifiée. Isolant perspirant (µ={mu}) : "
-            "généralement compatible mais vérification recommandée."),
-        ("inconnu",      "semi_etanche") : ("À vérifier",
-            f"Composition de mur non identifiée + isolant semi-étanche (µ={mu}) : à vérifier."),
-        ("inconnu",      "pare_vapeur")  : ("À vérifier",
-            f"Composition de mur non identifiée + isolant pare-vapeur (µ={mu}) : à vérifier."),
-    }
-
-    statut, justif = matrice[(type_mur, type_isolant)]
-
-    # Si la base dit 'À vérifier' et notre calcul dit 'Compatible', on est prudent
-    if statut_base == "À vérifier" and statut == "Compatible":
-        return "À vérifier", justif_base or justif
-
-    return statut, justif
+    vide = {"exploitable": False, "config": None, "criteres": None,
+            "retenu": None, "statut": "", "alerte": "", "message": MESSAGE_VERIF}
+    ci = (classe_isolant or "").strip().upper()
+    if (type_mur not in HYGROBA) or (classe_ext not in ("P", "E")) or (ci not in ("P", "E")):
+        return vide
+    config = f"{classe_ext}-{ci}"
+    criteres = HYGROBA[type_mur].get(config)
+    if criteres is None:
+        return vide
+    statut = PRESELECTION_HYGROBA.get(type_mur, {}).get(config)  # None si config écartée
+    retenu = statut is not None
+    alerte = ALERTE_SECHAGE if statut == "vigilance" else ""
+    return {"exploitable": True, "config": config, "criteres": criteres,
+            "retenu": retenu, "statut": statut or "", "alerte": alerte, "message": ""}

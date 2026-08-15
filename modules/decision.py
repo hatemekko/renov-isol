@@ -10,7 +10,7 @@ def filtrer_et_classer(
 ) -> tuple[list[ResultatMateriau], list[ResultatMateriau]]:
     """
     Sépare les solutions admissibles et écartées.
-    Admissible = R_obtenu >= R_cible ET statut_hygro != 'Non compatible'.
+    Admissible = R_obtenu >= R_cible ET compatibilité ITI (fiche) ≠ Non.
     Les solutions 'À vérifier' sont admissibles mais signalées.
     """
     admissibles = [r for r in resultats if r.admissible]
@@ -70,13 +70,7 @@ def generer_explication(r: ResultatMateriau, est_principale: bool) -> str:
             f"(coût + valeur des m² perdus) de {r.cout_global:,.0f} €, "
             "le plus faible parmi les solutions admissibles."
         )
-        hygro = ""
-        if r.statut_hygro == "À vérifier":
-            hygro = (
-                " ⚠️ Le statut hygrothermique est **à vérifier** : "
-                "une étude hygrothermique détaillée est recommandée avant réalisation."
-            )
-        return intro + thermo + surface + eco + hygro
+        return intro + thermo + surface + eco
 
     else:
         intro = (
@@ -91,10 +85,4 @@ def generer_explication(r: ResultatMateriau, est_principale: bool) -> str:
             "de la solution principale en raison d'une surface perdue plus importante "
             f"({r.surface_consommee_m2} m²)."
         )
-        hygro = ""
-        if r.statut_hygro == "À vérifier":
-            hygro = (
-                " ⚠️ Le statut hygrothermique est **à vérifier** : "
-                "une étude hygrothermique détaillée est recommandée avant réalisation."
-            )
-        return intro + thermo + eco + hygro
+        return intro + thermo + eco

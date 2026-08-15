@@ -4,7 +4,7 @@ Page : Nouvelle analyse — saisie des paramètres du projet.
 import streamlit as st
 from database.sheets import lire_materiaux, sauvegarder_analyse
 from modules.calculations import analyser_materiau
-from modules.hygro import resoudre_statut
+from modules.hygro import TYPES_MURS, ETATS_EXTERIEUR, classe_exterieur
 from modules.decision import (
     filtrer_et_classer,
     recommandation_principale,
@@ -27,40 +27,16 @@ with st.form("form_analyse"):
         lineaire          = st.number_input("Linéaire des murs à isoler (m) *", min_value=0.5, value=15.6, step=0.1)
         hsp               = st.number_input("Hauteur sous plafond (m) *", min_value=1.8, value=3.03, step=0.05)
     with col2:
-        composition_mur = st.selectbox(
-            "Composition des murs existants *",
-            options=[
-                "Pierre de taille",
-                "Brique pleine",
-                "Calcaire / meulière",
-                "Pisé / terre crue",
-                "Colombage",
-                "Béton",
-                "Parpaing",
-                "Mâchefer",
-                "Brique creuse",
-                "Autre / inconnue",
-            ],
-        )
+        composition_mur = st.selectbox("Type de mur existant *", options=TYPES_MURS)
+        etat_exterieur  = st.selectbox("État / finition extérieure de la paroi *",
+                                       options=ETATS_EXTERIEUR)
         R_cible       = st.number_input("Résistance thermique cible R (m².K/W) *",
                                          min_value=1.0, max_value=10.0, value=4.5, step=0.1)
         prix_m2       = st.number_input("Prix du logement (€/m²) *",
                                          min_value=500, max_value=50000, value=13649, step=100)
 
-    with st.expander("➕ Préciser la paroi si « Autre / inconnue »"):
-        st.caption("À remplir uniquement si vous avez choisi « Autre / inconnue » ci-dessus. "
-                   "Sinon, laissez tel quel.")
-        paroi_type = st.selectbox(
-            "Type de paroi",
-            ["Non précisé", "Perspirante", "Semi-étanche", "Pare-vapeur / étanche"],
-        )
-        paroi_mu = st.number_input(
-            "µ de la paroi (optionnel — 0 = non renseigné)",
-            min_value=0.0, value=0.0, step=1.0,
-            help="Si renseigné (> 0), il est prioritaire sur le type ci-dessus. "
-                 "µ ≤ 10 = perspirant ; µ > 10 = semi-étanche / pare-vapeur.",
-        )
-
+    st.caption("Le comportement extérieur (P/E) est déduit de la finition ci-dessus ; la classe "
+               "hygrique P/E de chaque isolant est renseignée dans sa fiche (page Administration).")
     st.caption("* Champs obligatoires. Les valeurs négatives sont refusées.")
 
     lancer = st.form_submit_button("🔍 Lancer l'analyse", use_container_width=True, type="primary")
@@ -92,37 +68,21 @@ if lancer:
         st.warning("Aucun matériau actif dans la base. Ajoutez des matériaux via la page Administration.")
         st.stop()
 
-    # Paroi "Autre / inconnue" : précisions saisies par l'utilisateur
-    type_mur_force = ""
-    if composition_mur == "Autre / inconnue":
-        if paroi_mu and paroi_mu > 0:
-            type_mur_force = "perspirant" if paroi_mu <= 10 else "semi_etanche"
-        elif paroi_type == "Perspirante":
-            type_mur_force = "perspirant"
-        elif paroi_type in ("Semi-étanche", "Pare-vapeur / étanche"):
-            type_mur_force = "semi_etanche"
+    # Côté extérieur (P/E) déduit de la finition extérieure
+    classe_ext = classe_exterieur(etat_exterieur)
 
     # Analyse de chaque matériau
     resultats = []
     for _, mat in df_mat.iterrows():
         mat_dict = mat.to_dict()
-        # Résolution hygrothermique
-        statut_hygro, justif_hygro = resoudre_statut(
-            composition_mur,
-            float(mat_dict.get("mu") or 999),
-            mat_dict.get("statut_hygro_pierre", "Compatible") if "pierre" in composition_mur.lower()
-            else mat_dict.get("statut_hygro_beton", "Compatible"),
-            "",
-            type_mur_force=type_mur_force,
-        )
         r = analyser_materiau(
             mat=mat_dict,
             R_cible=R_cible,
             surface_murs_m2=surface_murs,
             lineaire_m=lineaire,
             prix_m2_logement=prix_m2,
-            statut_hygro_resolu=statut_hygro,
-            justif_hygro=justif_hygro,
+            type_mur=composition_mur,
+            classe_ext=classe_ext,
         )
         resultats.append(r)
 
@@ -154,6 +114,8 @@ if lancer:
             "lineaire": lineaire,
             "hsp": hsp,
             "composition_mur": composition_mur,
+            "etat_exterieur": etat_exterieur,
+            "classe_exterieur": classe_ext or "—",
             "R_cible": R_cible,
             "prix_m2": prix_m2,
         },

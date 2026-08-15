@@ -13,12 +13,16 @@ etapes = [
      "linéaire des murs, résistance thermique cible (R cible en m².K/W), composition des murs "
      "existants et prix du logement au mètre carré."),
     ("2 — Filtrage technique",
-     "Pour chaque matériau de la base, l'outil vérifie trois conditions :\n"
-     "- **R obtenu ≥ R cible** grâce à l'épaisseur commerciale disponible.\n"
-     "- **Compatibilité hygrothermique** : les murs anciens perspirants (pierre, brique pleine, "
-     "pisé) ne sont compatibles qu'avec des isolants perspirants (µ ≤ 10). "
-     "Un isolant pare-vapeur (µ > 30) sur un mur perspirant est classé **Non compatible** "
-     "et exclu du classement."),
+     "Pour chaque matériau de la base, l'outil vérifie :\n"
+     "- **R obtenu ≥ R cible** grâce à l'épaisseur commerciale disponible ;\n"
+     "- **compatibilité ITI** déclarée dans la fiche matériau (une solution marquée « Non » "
+     "est écartée).\n\n"
+     "L'outil détermine aussi la **configuration hygrothermique (méthode HYGROBA)** en croisant "
+     "le type de mur, l'état extérieur de la paroi (classé P ou E selon la finition) et la classe "
+     "hygrique P/E de la solution (saisie dans la fiche, jamais déduite de µ ou Sd). Il affiche "
+     "les trois résultats HYGROBA — quantité d'eau, capacité de séchage, condensation "
+     "(vert / orange / rouge). À ce stade, ces résultats sont **indicatifs** et n'éliminent pas "
+     "de solution ; la règle de décision associée sera ajoutée ultérieurement."),
     ("3 — Calcul de l'épaisseur",
      "Pour chaque matériau :\n\n"
      "> **e théorique (mm) = λ × R cible × 1000**\n\n"

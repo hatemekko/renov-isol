@@ -51,10 +51,14 @@ for _, row in df_f.iterrows():
             if _ths:
                 st.write(f"Épaisseurs : {', '.join(str(e) for e in _ths)} mm")
         with col3:
-            st.markdown("**Hygrothermique**")
-            st.write(f"µ : {row.get('mu', '—')}")
-            statut = row.get("statut_hygro_pierre", "—")
-            st.write(f"Statut (mur pierre) : {statut}")
+            st.markdown("**Hygrothermique (HYGROBA)**")
+            st.write(f"Classe hygrique : {row.get('classe_hygrique') or '—'}")
+            st.write(f"Compatibilité ITI : {row.get('compatibilite_iti') or '—'}")
+            st.write(f"µ : {row.get('mu', '—')}  ·  Sd : {row.get('sd') or '—'} m")
+            if row.get("parement"):
+                st.write(f"Parement / pare-vapeur : {row.get('parement')}")
+            if row.get("commentaire"):
+                st.caption(f"{row.get('commentaire')}")
         st.markdown("**Économique — prix par épaisseur**")
         _prix_rows = [d for d in (epaisseurs or []) if isinstance(d, dict)]
         if _prix_rows:

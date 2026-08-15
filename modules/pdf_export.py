@@ -56,40 +56,6 @@ def _style():
     return s
 
 
-def _table_resultats(r: ResultatMateriau, style) -> Table:
-    data = [
-        ["Indicateur", "Valeur"],
-        ["Matériau", r.nom],
-        ["Conductivité λ", f"{r.lambda_val} W/m.K"],
-        ["Épaisseur retenue", f"{r.e_commerciale_mm} mm"],
-        ["Épaisseur totale posée", f"{r.e_totale_mm} mm"],
-        ["R obtenu", f"{r.R_obtenu} m².K/W"],
-        ["Surface perdue", f"{r.surface_consommee_m2} m²"],
-        ["Coût fourniture", f"{r.cout_fourniture:,.0f} €"],
-        ["Coût pose", f"{r.cout_pose:,.0f} €"],
-        ["Coût des travaux", f"{r.cout_initial:,.0f} €"],
-        ["Valeur des m² perdus", f"{r.valorisation_surface:,.0f} €"],
-        ["Coût + valeur des m² perdus", f"{r.cout_global:,.0f} €"],
-        ["Statut hygrothermique", r.statut_hygro],
-        ["Source", r.source or "—"],
-    ]
-    t = Table(data, colWidths=[10 * cm, 7 * cm])
-    ts = TableStyle([
-        ("BACKGROUND",  (0, 0), (-1, 0), SLATE),
-        ("TEXTCOLOR",   (0, 0), (-1, 0), colors.white),
-        ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE",    (0, 0), (-1, -1), 9),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [LIGHT, colors.white]),
-        ("GRID",        (0, 0), (-1, -1), 0.5, colors.HexColor("#D8DDE0")),
-        ("LEFTPADDING",  (0, 0), (-1, -1), 6),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING",   (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
-    ])
-    t.setStyle(ts)
-    return t
-
-
 def _graph_image(admissibles):
     """Construit le graphique à bulles (coût des travaux × surface perdue) en image PNG."""
     if not admissibles:
