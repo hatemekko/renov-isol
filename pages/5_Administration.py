@@ -120,19 +120,16 @@ with tab_add:
             "Classe hygrique de la solution (P / E)", ["", "P", "E"],
             help="P = perméable / peu résistante aux transferts d'humidité ; E = plus fermée / "
                  "résistante. À saisir d'après les fiches techniques, Avis Techniques, ACERMI… "
-                 "Jamais déduite de µ ou Sd.")
-        compat_iti = c2.selectbox("Compatibilité ITI", ["Oui", "À vérifier", "Non"])
-        c1, c2 = st.columns(2)
-        mu_str = c1.text_input("Facteur µ (informatif)", value="",
-                               help="Information / traçabilité — ne détermine pas la classe P/E.")
-        sd_str = c2.text_input("Sd en m (informatif)", value="")
+                 "Jamais déduite de µ.")
+        mu_str = c2.text_input("Facteur µ (informatif)", value="",
+                               help="Information / traçabilité — ne détermine pas la classe P/E. "
+                                    "Le Sd éventuel se déduit de µ × épaisseur retenue.")
         parement = st.text_input(
             "Parement / frein-vapeur / pare-vapeur — type ou description",
             placeholder="Ex. : pare-vapeur obligatoire ; parement plaque de plâtre ; aucun")
         frein_pare = st.text_input(
             "Frein-vapeur / pare-vapeur éventuel (précision)",
             placeholder="Ex. : pare-vapeur Sd ≥ 18 m ; frein-vapeur hygrovariable")
-        prescription = st.text_area("Prescription de mise en œuvre", height=68)
         commentaire = st.text_area("Commentaire", height=68)
 
         st.markdown("**Autres**")
@@ -174,12 +171,9 @@ with tab_add:
                 "lambda_wm K": lambda_val,
                 "epaisseurs_mm": epaisseurs,
                 "mu": _num_opt(mu_str),
-                "sd": _num_opt(sd_str),
                 "classe_hygrique": classe_hygrique,
-                "compatibilite_iti": compat_iti,
                 "parement": parement.strip(),
                 "frein_pare_vapeur": frein_pare.strip(),
-                "prescription_pose": prescription.strip(),
                 "commentaire": commentaire.strip(),
                 "prix_fourniture_eur_m2": prix_f0,
                 "prix_pose_eur_m2": prix_p0,
@@ -248,24 +242,18 @@ with tab_edit:
                                        column_config=PRIX_COLS)
 
             st.markdown("**Hygrothermique (méthode HYGROBA)**")
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             e_classe = c1.selectbox("Classe hygrique (P / E)", ["", "P", "E"],
                                     index=_idx(row.get("classe_hygrique"), ["", "P", "E"]),
-                                    help="Saisie manuelle, jamais déduite de µ/Sd.")
-            e_iti    = c2.selectbox("Compatibilité ITI", ["Oui", "À vérifier", "Non"],
-                                    index=_idx(row.get("compatibilite_iti"), ["Oui", "À vérifier", "Non"]))
-            e_epcomp = c3.number_input("Épaisseur complémentaire (mm)", min_value=0,
+                                    help="Saisie manuelle, jamais déduite de µ.")
+            e_epcomp = c2.number_input("Épaisseur complémentaire (mm)", min_value=0,
                                        value=int(float(row.get("epaisseur_complementaire_mm") or 0)))
-            c1, c2 = st.columns(2)
-            e_mu = c1.text_input("µ (informatif)", value=str(row.get("mu") or ""),
+            e_mu = st.text_input("µ (informatif)", value=str(row.get("mu") or ""),
                                  help="Point ou virgule accepté. Ne détermine pas la classe P/E.")
-            e_sd = c2.text_input("Sd en m (informatif)", value=str(row.get("sd") or ""))
             e_parement = st.text_input("Parement / frein-vapeur / pare-vapeur — type ou description",
                                        value=str(row.get("parement") or ""))
             e_frein = st.text_input("Frein-vapeur / pare-vapeur éventuel (précision)",
                                     value=str(row.get("frein_pare_vapeur") or ""))
-            e_prescription = st.text_area("Prescription de mise en œuvre",
-                                          value=str(row.get("prescription_pose") or ""), height=68)
             e_commentaire = st.text_area("Commentaire", value=str(row.get("commentaire") or ""), height=68)
 
             c1, c2 = st.columns(2)
@@ -290,7 +278,6 @@ with tab_edit:
                     errs.append("λ doit être supérieur à 0.")
                     v_lambda = None
                 v_mu = _num_opt(e_mu)
-                v_sd = _num_opt(e_sd)
                 v_ep, v_pf, v_pp = _parse_prix_table(e_prix_df)
                 if not v_ep:
                     errs.append("Renseignez au moins une épaisseur avec son prix.")
@@ -305,11 +292,9 @@ with tab_edit:
                     ok = modifier_materiau(mat_id, {
                         "nom": e_nom.strip(), "famille": e_famille.strip(),
                         "fabricant": e_fabricant.strip(), "reference": e_reference.strip(),
-                        "lambda_wm K": v_lambda, "epaisseurs_mm": v_ep,
-                        "mu": v_mu, "sd": v_sd,
-                        "classe_hygrique": e_classe, "compatibilite_iti": e_iti,
+                        "lambda_wm K": v_lambda, "epaisseurs_mm": v_ep, "mu": v_mu,
+                        "classe_hygrique": e_classe,
                         "parement": e_parement.strip(), "frein_pare_vapeur": e_frein.strip(),
-                        "prescription_pose": e_prescription.strip(),
                         "commentaire": e_commentaire.strip(),
                         "prix_fourniture_eur_m2": v_pf, "prix_pose_eur_m2": v_pp,
                         "epaisseur_complementaire_mm": e_epcomp,

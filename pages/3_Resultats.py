@@ -83,7 +83,8 @@ st.caption(
 )
 if admissibles:
     _emoji = {"vert": "🟢", "orange": "🟠", "rouge": "🔴"}
-    _stat = {"privilégier": "✅ À privilégier", "vigilance": "⚠️ Vigilance"}
+    _stat = {"privilégier": "✅ Retenue par la présélection HYGROBA",
+             "vigilance": "⚠️ Retenue par la présélection HYGROBA — vigilance"}
     hrows = []
     for r in admissibles:
         if r.hygro_exploitable and r.hygro_criteres:
@@ -111,6 +112,12 @@ if admissibles:
     # Alertes de vigilance (ex. pierre calcaire dure : faible capacité de séchage)
     for a in sorted({r.hygro_alerte for r in admissibles if r.hygro_alerte}):
         st.warning(a)
+    st.info(
+        "La présélection HYGROBA constitue une aide à la décision et ne remplace pas une étude "
+        "hygrothermique spécifique de la paroi et des solutions retenues avant mise en œuvre. "
+        "Le classement P/E est une présélection : il ne garantit pas que deux isolants de même "
+        "classe se comportent identiquement dans un bâtiment réel."
+    )
 
 # ── Solutions non retenues ─────────────────────────────────────────────────────
 if ecartees:

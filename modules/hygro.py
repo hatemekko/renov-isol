@@ -90,7 +90,7 @@ PRESELECTION_HYGROBA = {
     "Pierre calcaire dure":  {"P-P": "vigilance", "P-E": "vigilance", "E-P": "vigilance"},
 }
 
-MOTIF_HYGROBA_ECARTE = ("Solution non retenue par le filtre HYGROBA pour cette "
+MOTIF_HYGROBA_ECARTE = ("Non retenue par la présélection HYGROBA pour cette "
                         "configuration de paroi.")
 
 ALERTE_SECHAGE = ("Point de vigilance HYGROBA : capacité de séchage limitée signalée "
