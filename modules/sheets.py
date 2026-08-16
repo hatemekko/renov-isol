@@ -6,7 +6,7 @@ La clé de service est chargée depuis st.secrets (jamais dans le code).
 import json
 import streamlit as st
 import gspread
-from gspread.utils import ValueRenderOption
+from gspread.utils import ValueRenderOption, rowcol_to_a1
 from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import datetime
@@ -115,7 +115,14 @@ def ajouter_materiau(data: dict) -> bool:
         _ensure_header(ws, COLS_MATERIAUX)
         headers = ws.row_values(1)               # ordre RÉEL des colonnes du Sheet
         existing = ws.get_all_values()
-        data["id"] = len(existing)               # entête = ligne 1
+        # id unique = plus grand id existant + 1 (robuste même après des suppressions)
+        if len(existing) > 1 and "id" in existing[0]:
+            _ic = existing[0].index("id")
+            _ids = [_id_int(r[_ic]) for r in existing[1:] if _ic < len(r)]
+            _ids = [x for x in _ids if x >= 0]
+            data["id"] = (max(_ids) + 1) if _ids else 1
+        else:
+            data["id"] = 1
         data["date_maj"] = datetime.now().strftime("%Y-%m-%d")
         data["actif"] = 1
         if isinstance(data.get("epaisseurs_mm"), list):
@@ -132,16 +139,27 @@ def ajouter_materiau(data: dict) -> bool:
 def modifier_materiau(mat_id: int, updates: dict) -> bool:
     try:
         ws = _get_sheet(SHEET_MATERIAUX)
-        headers = ws.row_values(1)
-        data = ws.get_all_records()
-        for i, row in enumerate(data, start=2):  # ligne 1 = entête
-            if _id_int(row.get("id", -1)) == _id_int(mat_id):
+        values = ws.get_all_values()               # brut : pas de conversion, pas de surprise
+        if not values:
+            return False
+        headers = values[0]
+        if "id" not in headers:
+            return False
+        id_col = headers.index("id")
+        cible = _id_int(mat_id)
+        for idx in range(1, len(values)):          # idx 0-based ; ligne du Sheet = idx + 1
+            ligne = values[idx]
+            rid = ligne[id_col] if id_col < len(ligne) else ""
+            if _id_int(rid) == cible:
+                lot = []
                 for key, val in updates.items():
-                    if key in headers:           # repérage par NOM de colonne
-                        col_idx = headers.index(key) + 1
+                    if key in headers:             # repérage par NOM de colonne
                         if key == "epaisseurs_mm" and isinstance(val, list):
                             val = json.dumps(val)
-                        ws.update_cell(i, col_idx, "" if val is None else val)
+                        cell = rowcol_to_a1(idx + 1, headers.index(key) + 1)
+                        lot.append({"range": cell, "values": [["" if val is None else val]]})
+                if lot:
+                    ws.batch_update(lot)           # UNE seule requête d'écriture
                 return True
         return False
     except Exception as e:

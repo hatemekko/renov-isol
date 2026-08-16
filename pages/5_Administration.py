@@ -301,8 +301,12 @@ with tab_edit:
                         "source": e_source.strip(), "url": e_url.strip(),
                     })
                     if ok:
-                        st.success("Matériau mis à jour. Rechargez la page (R) pour voir les nouvelles valeurs.")
                         st.cache_resource.clear()
+                        st.toast("Matériau mis à jour ✅")
+                        st.rerun()
+                    else:
+                        st.error("Échec de l'enregistrement : matériau introuvable (id). "
+                                 "Rechargez la page et réessayez.")
 
         st.markdown("---")
         label_toggle = "⛔ Désactiver ce matériau" if actif else "✅ Réactiver ce matériau"
