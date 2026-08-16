@@ -81,10 +81,42 @@ st.caption(
     "retenues** dans la comparaison ci-dessus ; les autres apparaissent plus bas dans "
     "« Solutions non retenues »."
 )
+with st.expander("ⓘ Comprendre les indicateurs HYGROBA"):
+    st.markdown(
+        "HYGROBA évalue **trois critères**, chacun sur **trois niveaux** (repris tels quels de "
+        "l'étude, sans score chiffré).\n\n"
+        "**💧 Quantité d'eau dans la paroi**\n"
+        "- 🟢 Faible : peu d'accumulation d'eau et stabilisation.\n"
+        "- 🟡 Moyenne.\n"
+        "- 🔴 Élevée : accumulation d'eau importante ou stabilisation insuffisante.\n\n"
+        "**🌬️ Capacité de séchage en présence d'infiltrations d'humidité**\n"
+        "- 🟢 Élevée : peu d'accumulation et stabilisation.\n"
+        "- 🟡 Moyenne.\n"
+        "- 🔴 Faible : accumulation d'eau importante ou stabilisation insuffisante.\n\n"
+        "**💦 Risque de condensation interne dans la paroi**\n"
+        "- 🟢 Faible : humidité relative constamment inférieure à 85 %.\n"
+        "- 🟡 Modéré : humidité relative comprise entre 85 % et 95 %.\n"
+        "- 🔴 Important : humidité relative supérieure à 95 %.\n\n"
+        "**Légende générale** : 🟢 Situation favorable — 🟡 Niveau intermédiaire / vigilance — "
+        "🔴 Situation défavorable.\n\n"
+        "*Cette légende est une aide visuelle ; les intitulés techniques exacts ci-dessus "
+        "(« faible », « moyenne », « élevée »…) restent la référence.*"
+    )
+
 if admissibles:
-    _emoji = {"vert": "🟢", "orange": "🟠", "rouge": "🔴"}
+    _emoji = {"vert": "🟢", "orange": "🟡", "rouge": "🔴"}
+    _lab = {
+        "eau": {"vert": "Faible", "orange": "Moyenne", "rouge": "Élevée"},
+        "sechage": {"vert": "Élevée", "orange": "Moyenne", "rouge": "Faible"},
+        "condensation": {"vert": "Risque faible", "orange": "Risque modéré",
+                         "rouge": "Risque important"},
+    }
     _stat = {"privilégier": "✅ Retenue par la présélection HYGROBA",
              "vigilance": "⚠️ Retenue par la présélection HYGROBA — vigilance"}
+
+    def _cell(crit, coul):
+        return f"{_emoji.get(coul, '')} {_lab[crit].get(coul, coul)}"
+
     hrows = []
     for r in admissibles:
         if r.hygro_exploitable and r.hygro_criteres:
@@ -93,30 +125,32 @@ if admissibles:
                 "Matériau": r.nom,
                 "Classe P/E": r.classe_hygrique or "—",
                 "Configuration": r.hygro_config,
-                "Statut HYGROBA": _stat.get(r.hygro_statut, r.hygro_statut or "—"),
-                "Quantité d'eau": f"{_emoji.get(c['eau'], '')} {c['eau'].capitalize()}",
-                "Capacité de séchage": f"{_emoji.get(c['sechage'], '')} {c['sechage'].capitalize()}",
-                "Condensation": f"{_emoji.get(c['condensation'], '')} {c['condensation'].capitalize()}",
+                "Statut": _stat.get(r.hygro_statut, r.hygro_statut or "—"),
+                "💧 Quantité d'eau": _cell("eau", c["eau"]),
+                "🌬️ Capacité de séchage": _cell("sechage", c["sechage"]),
+                "💦 Condensation interne": _cell("condensation", c["condensation"]),
             })
         else:
             hrows.append({
                 "Matériau": r.nom,
                 "Classe P/E": r.classe_hygrique or "—",
                 "Configuration": r.hygro_config or "—",
-                "Statut HYGROBA": "Vérification complémentaire",
-                "Quantité d'eau": "Vérification hygrothermique complémentaire nécessaire",
-                "Capacité de séchage": "",
-                "Condensation": "",
+                "Statut": "Vérification complémentaire",
+                "💧 Quantité d'eau": "Vérification hygrothermique complémentaire nécessaire",
+                "🌬️ Capacité de séchage": "",
+                "💦 Condensation interne": "",
             })
     st.dataframe(pd.DataFrame(hrows), use_container_width=True, hide_index=True)
+    st.caption("🟢 Situation favorable — 🟡 Niveau intermédiaire / vigilance — 🔴 Situation "
+               "défavorable. Les intitulés techniques (« faible », « moyenne », « élevée »…) "
+               "restent la référence.")
     # Alertes de vigilance (ex. pierre calcaire dure : faible capacité de séchage)
     for a in sorted({r.hygro_alerte for r in admissibles if r.hygro_alerte}):
         st.warning(a)
     st.info(
-        "La présélection HYGROBA constitue une aide à la décision et ne remplace pas une étude "
-        "hygrothermique spécifique de la paroi et des solutions retenues avant mise en œuvre. "
-        "Le classement P/E est une présélection : il ne garantit pas que deux isolants de même "
-        "classe se comportent identiquement dans un bâtiment réel."
+        "Cette présélection constitue une aide à la décision fondée sur les résultats de l'étude "
+        "HYGROBA. Elle ne remplace pas une étude hygrothermique spécifique de la paroi et des "
+        "solutions retenues avant mise en œuvre."
     )
 
 # ── Solutions non retenues ─────────────────────────────────────────────────────
