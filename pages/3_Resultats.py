@@ -59,13 +59,13 @@ if admissibles:
             "Ép. isolant (mm)": r.e_commerciale_mm,
             "Ép. totale ITI (mm)": r.e_totale_mm,
             "R obtenu": r.R_obtenu,
-            "Statut HYGROBA": _sh,
-            "Fourniture (€)": r.cout_fourniture,
-            "Pose (€)": r.cout_pose,
-            "Coût des travaux (€)": r.cout_initial,
+            "HYGROBA": _sh,
+            "Fourniture (€)": round(r.cout_fourniture),
+            "Pose (€)": round(r.cout_pose),
+            "Coût des travaux (€)": round(r.cout_initial),
             "Surface perdue (m²)": r.surface_consommee_m2,
-            "Valeur des m² perdus (€)": r.valorisation_surface,
-            "Coût + valeur des m² perdus (€)": r.cout_global,
+            "Valeur des m² perdus (€)": round(r.valorisation_surface),
+            "Indicateur économique élargi (€)": round(r.cout_global),
         })
     df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True, hide_index=True)
@@ -169,6 +169,8 @@ if ecartees:
             "Matériau": r.nom,
             "Classe P/E": r.classe_hygrique or "—",
             "Configuration": r.hygro_config or "—",
+            "HYGROBA": ("Non retenue" if "présélection HYGROBA" in (r.motif_exclusion or "")
+                        else "—"),
             "Motif": r.motif_exclusion,
         } for r in ecartees]),
         use_container_width=True, hide_index=True)
@@ -262,7 +264,7 @@ if admissibles:
 
     smin, smax = float(df_g["Somme"].min()), float(df_g["Somme"].max())
     colorbar = dict(
-        title=dict(text="Coût + valeur<br>des m² perdus", font=dict(color="#2B3A42", size=11)),
+        title=dict(text="Indicateur économique<br>élargi (€)", font=dict(color="#2B3A42", size=11)),
         tickfont=dict(color="#2B3A42"), thickness=14, len=0.9,
     )
     if smax > smin:

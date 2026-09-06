@@ -92,7 +92,7 @@ def _graph_image(admissibles):
         sc = ax.scatter(x_plot, ys, s=sizes, c=sommes, cmap=cmap, vmin=smin, vmax=smax,
                         edgecolors="#2B3A42", linewidths=0.9, alpha=0.6, zorder=3)
         cb = fig.colorbar(sc, ax=ax)
-        cb.set_label("Coût + valeur des m² perdus", fontsize=8, color="#2B3A42")
+        cb.set_label("Indicateur économique élargi (€)", fontsize=8, color="#2B3A42")
         cb.set_ticks([smin, smax])
         cb.set_ticklabels(["Faible", "Élevé"])
         cb.ax.tick_params(labelsize=7, colors="#2B3A42")
@@ -136,13 +136,13 @@ def _table_comparatif(admissibles, style) -> Table:
     cell = ParagraphStyle("cellmat", fontSize=8, leading=10, textColor=SLATE)
     hcell = ParagraphStyle("hcell", fontSize=7.5, leading=9,
                            textColor=colors.white, fontName="Helvetica-Bold")
-    labels = ["Matériau", "Ép. (mm)", "R", "Coût travaux (€)",
-              "Surface perdue (m²)", "Valeur m² perdus (€)", "Coût + valeur (€)"]
+    labels = ["Matériau", "Ép. ITI (mm)", "R", "Coût travaux (€)",
+              "Surface perdue (m²)", "Valeur m² perdus (€)", "Ind. éco. élargi (€)"]
     data = [[Paragraph(h, hcell) for h in labels]]
     for r in admissibles:
         data.append([
             Paragraph(r.nom, cell),
-            f"{r.e_commerciale_mm}",
+            f"{r.e_totale_mm:.0f}",
             f"{r.R_obtenu}",
             f"{r.cout_initial:,.0f}",
             f"{r.surface_consommee_m2:.2f}",

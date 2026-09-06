@@ -86,19 +86,19 @@ def calculer_couts(
     prix_fourniture_m2: float,
     prix_pose_m2: float,
 ) -> tuple[float, float, float]:
-    """Retourne (coût_fourniture, coût_pose, coût_initial)"""
-    cf = round(surface_murs_m2 * prix_fourniture_m2, 2)
-    cp = round(surface_murs_m2 * prix_pose_m2, 2)
-    return cf, cp, round(cf + cp, 2)
+    """Retourne (coût_fourniture, coût_pose, coût_initial) — valeurs brutes, non arrondies"""
+    cf = surface_murs_m2 * prix_fourniture_m2
+    cp = surface_murs_m2 * prix_pose_m2
+    return cf, cp, cf + cp
 
 
 def calculer_valorisation(surface_consommee_m2: float, prix_m2_logement: float) -> float:
-    """Valeur des m² perdus = surface perdue × prix du logement (coût d'opportunité indicatif)"""
-    return round(surface_consommee_m2 * prix_m2_logement, 2)
+    """Valeur des m² perdus = surface perdue × prix du logement (brut, non arrondi)"""
+    return surface_consommee_m2 * prix_m2_logement
 
 
 def calculer_cout_global(cout_initial: float, valorisation_surface: float) -> float:
-    return round(cout_initial + valorisation_surface, 2)
+    return cout_initial + valorisation_surface
 
 
 def _thicknesses_and_prices(epaisseurs_raw):
