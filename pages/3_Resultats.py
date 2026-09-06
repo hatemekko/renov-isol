@@ -49,13 +49,17 @@ st.markdown("---")
 # ── Tableau comparatif ─────────────────────────────────────────────────────────
 st.subheader("Tableau comparatif — solutions admissibles")
 if admissibles:
+    _statut_court = {"privilégier": "À privilégier", "vigilance": "Vigilance"}
     rows = []
     for r in admissibles:
+        _sh = _statut_court.get(r.hygro_statut, "Vérification" if not r.hygro_exploitable else "—")
         rows.append({
             "Matériau": r.nom,
             "λ": r.lambda_val,
-            "Épaisseur (mm)": r.e_commerciale_mm,
+            "Ép. isolant (mm)": r.e_commerciale_mm,
+            "Ép. totale ITI (mm)": r.e_totale_mm,
             "R obtenu": r.R_obtenu,
+            "Statut HYGROBA": _sh,
             "Fourniture (€)": r.cout_fourniture,
             "Pose (€)": r.cout_pose,
             "Coût des travaux (€)": r.cout_initial,
@@ -196,8 +200,9 @@ if admissibles:
         "Fiabilité": getattr(r, "fiabilite", "—"),
     } for i, r in enumerate(admissibles)])
 
-    _val = df_g["Valeur des m² perdus (€)"]
-    df_g["_taille"] = _val if _val.max() > 0 else 1.0
+    # Indicateur économique élargi = coût des travaux + valeur des m² perdus (colonne "Somme")
+    _ind = df_g["Somme"]
+    df_g["_taille"] = _ind if _ind.max() > 0 else 1.0
 
     # Dodge : quand des solutions ont un coût ET une surface très proches, leurs bulles se
     # chevauchent. On décale légèrement leur position horizontale (en éventail) pour les rendre
@@ -302,7 +307,9 @@ if admissibles:
         "moins les travaux coûtent cher ; plus elle est basse, moins elle fait perdre de surface. "
         "L'axe des coûts est en **échelle logarithmique** (graduations 2 500, 5 000, 10 000, 20 000…) : "
         "les écarts entre solutions abordables restent visibles même en présence d'une solution très chère. "
-        "La taille représente la valeur des m² perdus. **Les numéros suivent la couleur : le n°1 est "
+        "La taille de la bulle représente l'indicateur économique élargi (coût des travaux + valeur "
+        "immobilière des m² perdus) — même grandeur que la couleur, qui la renforce visuellement. "
+        "**Les numéros suivent la couleur : le n°1 est "
         "la solution la plus verte** (coût + valeur des m² perdus le plus faible), et les numéros "
         "augmentent vers le rouge. Quand plusieurs solutions sont très proches, leurs bulles sont "
         "légèrement écartées à l'horizontale pour rester lisibles — les valeurs exactes sont dans "

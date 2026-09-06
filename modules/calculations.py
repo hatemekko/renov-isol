@@ -204,7 +204,8 @@ def analyser_materiau(
 
     # ── Calcul géométrique ────────────────────────────────────────────
     e_totale_mm = e_com_mm + e_comp_mm
-    s_cons = calculer_surface_consommee(lineaire_m, e_totale_mm)
+    s_cons_exact = lineaire_m * (e_totale_mm / 1000.0)   # surface EXACTE (pour les calculs)
+    s_cons = round(s_cons_exact, 2)                       # arrondie (pour l'affichage uniquement)
     detail.append(
         f"Épaisseur totale = {e_com_mm} + {e_comp_mm} = {e_totale_mm} mm"
     )
@@ -212,9 +213,9 @@ def analyser_materiau(
         f"Surface perdue = {lineaire_m} m × {e_totale_mm/1000:.3f} m = {s_cons} m²"
     )
 
-    # ── Calcul économique ─────────────────────────────────────────────
+    # ── Calcul économique (sur la surface exacte, non arrondie) ────────
     cf, cp, ci = calculer_couts(surface_murs_m2, prix_f, prix_p)
-    vs = calculer_valorisation(s_cons, prix_m2_logement)
+    vs = calculer_valorisation(s_cons_exact, prix_m2_logement)
     cg = calculer_cout_global(ci, vs)
     detail += [
         f"Coût fourniture = {surface_murs_m2} m² × {prix_f} €/m² = {cf} €",

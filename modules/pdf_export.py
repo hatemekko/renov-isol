@@ -62,7 +62,7 @@ def _graph_image(admissibles):
         return None
     xs = [r.cout_initial for r in admissibles]
     ys = [r.surface_consommee_m2 for r in admissibles]
-    vals = [r.valorisation_surface for r in admissibles]
+    vals = [r.cout_global for r in admissibles]   # taille = indicateur économique élargi
     sommes = [r.cout_global for r in admissibles]
     noms = [r.nom for r in admissibles]
 
@@ -224,11 +224,12 @@ def generer_pdf(
         story.append(Paragraph("Comparaison des solutions", s["H2"]))
         story.append(Paragraph(
             "Le graphique positionne chaque solution admissible selon son coût des travaux "
-            "(axe horizontal) et la surface perdue (axe vertical). La taille de la bulle "
-            "représente la valeur des m² perdus ; la couleur (verte → rouge) compare, entre "
-            "les solutions du projet, la somme « coût des travaux + valeur des m² perdus ». "
-            "La zone en bas à gauche réunit les solutions les moins chères qui font perdre "
-            "le moins de surface intérieure.", s["Corps"]))
+            "(axe horizontal) et la surface perdue (axe vertical). La taille de la bulle et sa "
+            "couleur (verte → rouge) représentent toutes deux l'indicateur économique élargi "
+            "(coût des travaux + valeur immobilière des m² perdus) : plus une bulle est grosse "
+            "et rouge, plus cet indicateur est élevé. La zone en bas à gauche réunit les "
+            "solutions les moins chères qui font perdre le moins de surface intérieure.",
+            s["Corps"]))
         img = _graph_image(admissibles)
         if img is not None:
             story.append(RLImage(img, width=16*cm, height=10.8*cm))
