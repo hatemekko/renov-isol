@@ -1,13 +1,91 @@
 """
 Page : Résultats — recommandations, tableau comparatif, graphiques, PDF.
 """
+import json
+import dataclasses
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from modules.pdf_export import generer_pdf
+from modules.calculations import ResultatMateriau
+from database.sheets import lire_analyses, charger_analyse, supprimer_analyse
+from modules.decision import generer_explication, recommandation_principale, alternative_economique
 
 st.title("📊 Résultats")
+
+# ── Panneau : analyses sauvegardées ───────────────────────────────────────────
+with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou supprimer"):
+    analyses = lire_analyses()
+    if not analyses:
+        st.info("Aucune analyse sauvegardée pour l'instant.")
+    else:
+        df_an = pd.DataFrame([{
+            "Nom du projet": a.get("nom_projet", "—"),
+            "Date": a.get("date", "—"),
+            "Mur": a.get("composition_mur", "—"),
+            "R cible": a.get("R_cible", "—"),
+            "_ligne": a["_ligne"],
+        } for a in analyses])
+        st.dataframe(df_an.drop(columns=["_ligne"]), use_container_width=True, hide_index=True)
+
+        col_sel, col_act = st.columns([3, 1])
+        choix = col_sel.selectbox(
+            "Sélectionner une analyse",
+            options=range(len(analyses)),
+            format_func=lambda i: f"{analyses[i].get('date','—')} — {analyses[i].get('nom_projet','—')}",
+        )
+        action = col_act.radio("Action", ["Recharger", "Supprimer"], horizontal=True)
+
+        if st.button("✅ Confirmer", key="btn_analyse_action"):
+            an = analyses[choix]
+            if action == "Supprimer":
+                if supprimer_analyse(an["_ligne"]):
+                    st.toast("Analyse supprimée ✅"); st.rerun()
+            else:
+                raw = charger_analyse(an["_ligne"])
+                if raw and raw.get("resultats_json"):
+                    try:
+                        snap = json.loads(raw["resultats_json"])
+
+                        def _from_dict(d):
+                            d["hygro_retenu"] = None if d.get("hygro_retenu") in ("None","") else d.get("hygro_retenu")
+                            # bool fields
+                            for k in ("admissible","hygro_exploitable"):
+                                if isinstance(d.get(k), str):
+                                    d[k] = d[k].lower() == "true"
+                            return ResultatMateriau(**d)
+
+                        adm = [_from_dict(d) for d in snap.get("admissibles", [])]
+                        ec  = [_from_dict(d) for d in snap.get("ecartees", [])]
+                        p   = recommandation_principale(adm)
+                        a_  = alternative_economique(adm, p)
+                        params_snap = {
+                            "surface_logement": float(raw.get("surface_logement_m2") or 0),
+                            "surface_murs": float(raw.get("surface_murs_m2") or 0),
+                            "lineaire": float(raw.get("lineaire_m") or 0),
+                            "hsp": float(raw.get("hsp_m") or 0),
+                            "composition_mur": raw.get("composition_mur", "—"),
+                            "etat_exterieur": raw.get("etat_exterieur", "—"),
+                            "classe_exterieur": "—",
+                            "R_cible": float(raw.get("R_cible") or 0),
+                            "prix_m2": float(raw.get("prix_m2_logement") or 0),
+                        }
+                        st.session_state["resultats"] = {
+                            "nom_projet": raw.get("nom_projet", "—"),
+                            "params": params_snap,
+                            "admissibles": adm, "ecartees": ec,
+                            "principale": p, "alternative": a_,
+                            "explication_principale": generer_explication(p, True) if p else "",
+                            "explication_alternative": generer_explication(a_, False) if a_ else "",
+                        }
+                        st.toast("Analyse rechargée ✅"); st.rerun()
+                    except Exception as ex:
+                        st.error(f"Impossible de recharger cette analyse : {ex}")
+                else:
+                    st.warning("Cette analyse a été sauvegardée avec l'ancienne version et ne contient pas les résultats détaillés.")
+
+st.markdown("---")
 
 if "resultats" not in st.session_state:
     st.info("Aucune analyse en cours. Commencez par renseigner les données dans **Nouvelle analyse**.")

@@ -136,20 +136,23 @@ def _table_comparatif(admissibles, style) -> Table:
     cell = ParagraphStyle("cellmat", fontSize=8, leading=10, textColor=SLATE)
     hcell = ParagraphStyle("hcell", fontSize=7.5, leading=9,
                            textColor=colors.white, fontName="Helvetica-Bold")
-    labels = ["Matériau", "Ép. ITI (mm)", "R", "Coût travaux (€)",
+    labels = ["Matériau", "Ép. ITI (mm)", "R", "HYGROBA", "Coût travaux (€)",
               "Surface perdue (m²)", "Valeur m² perdus (€)", "Ind. éco. élargi (€)"]
     data = [[Paragraph(h, hcell) for h in labels]]
+    _statut_court = {"privilégier": "À privilégier", "vigilance": "Vigilance"}
     for r in admissibles:
+        _sh = _statut_court.get(r.hygro_statut, "À vérifier" if not r.hygro_exploitable else "—")
         data.append([
             Paragraph(r.nom, cell),
             f"{r.e_totale_mm:.0f}",
             f"{r.R_obtenu}",
+            _sh,
             f"{r.cout_initial:,.0f}",
             f"{r.surface_consommee_m2:.2f}",
             f"{r.valorisation_surface:,.0f}",
             f"{r.cout_global:,.0f}",
         ])
-    t = Table(data, colWidths=[4.0*cm, 1.6*cm, 1.6*cm, 2.6*cm, 2.6*cm, 2.6*cm, 2.0*cm])
+    t = Table(data, colWidths=[3.8*cm, 1.5*cm, 1.4*cm, 2.2*cm, 2.2*cm, 2.0*cm, 2.2*cm, 2.0*cm])
     t.setStyle(TableStyle([
         ("BACKGROUND",  (0, 0), (-1, 0), SLATE),
         ("TEXTCOLOR",   (0, 0), (-1, 0), colors.white),

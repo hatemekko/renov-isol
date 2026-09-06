@@ -1,6 +1,7 @@
 """
 Page : Nouvelle analyse — saisie des paramètres du projet.
 """
+import json
 import streamlit as st
 from database.sheets import lire_materiaux, sauvegarder_analyse
 from modules.calculations import analyser_materiau
@@ -90,8 +91,18 @@ if lancer:
     principale  = recommandation_principale(admissibles)
     alternative = alternative_economique(admissibles, principale)
 
-    # Sauvegarde de l'analyse (non bloquant)
+    # Sauvegarde de l'analyse avec snapshot complet des résultats
     try:
+        import dataclasses
+        def _ser(r):
+            d = dataclasses.asdict(r)
+            # convertir les champs non sérialisables
+            d["hygro_retenu"] = str(d.get("hygro_retenu"))
+            return d
+        resultats_json = json.dumps({
+            "admissibles": [_ser(r) for r in admissibles],
+            "ecartees": [_ser(r) for r in ecartees],
+        }, ensure_ascii=False)
         sauvegarder_analyse({
             "nom_projet": nom_projet,
             "surface_logement_m2": surface_logement,
@@ -99,8 +110,10 @@ if lancer:
             "lineaire_m": lineaire,
             "hsp_m": hsp,
             "composition_mur": composition_mur,
+            "etat_exterieur": etat_exterieur,
             "R_cible": R_cible,
             "prix_m2_logement": prix_m2,
+            "resultats_json": resultats_json,
         })
     except Exception:
         pass

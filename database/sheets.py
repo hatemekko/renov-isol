@@ -33,7 +33,8 @@ COLS_MATERIAUX = [
 COLS_ANALYSES = [
     "id", "date", "nom_projet",
     "surface_logement_m2", "surface_murs_m2", "lineaire_m", "hsp_m",
-    "composition_mur", "R_cible", "prix_m2_logement",
+    "composition_mur", "etat_exterieur", "R_cible", "prix_m2_logement",
+    "resultats_json",
 ]
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -177,12 +178,62 @@ def sauvegarder_analyse(data: dict) -> bool:
     try:
         ws = _get_sheet(SHEET_ANALYSES)
         _ensure_header(ws, COLS_ANALYSES)
-        existing = ws.get_all_values()
-        data["id"] = len(existing)
+        vals = ws.get_all_values()
+        if len(vals) > 1 and "id" in vals[0]:
+            _ic = vals[0].index("id")
+            _ids = [_id_int(r[_ic]) for r in vals[1:] if _ic < len(r)]
+            _ids = [x for x in _ids if x >= 0]
+            data["id"] = (max(_ids) + 1) if _ids else 1
+        else:
+            data["id"] = 1
         data["date"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-        row = [data.get(c, "") for c in COLS_ANALYSES]
+        headers = ws.row_values(1)
+        row = [("" if data.get(h) is None else data.get(h, "")) for h in headers]
         ws.append_row(row)
         return True
     except Exception as e:
         st.error(f"Erreur lors de la sauvegarde : {e}")
+        return False
+
+
+def lire_analyses() -> list[dict]:
+    """Retourne la liste des analyses sauvegardées (sans le JSON des résultats)."""
+    try:
+        ws = _get_sheet(SHEET_ANALYSES)
+        vals = ws.get_all_values()
+        if len(vals) < 2:
+            return []
+        headers = vals[0]
+        rows = []
+        for i, r in enumerate(vals[1:], start=2):
+            d = {h: (r[j] if j < len(r) else "") for j, h in enumerate(headers)}
+            d["_ligne"] = i          # numéro de ligne réel dans le Sheet (pour suppression)
+            rows.append(d)
+        return rows
+    except Exception:
+        return []
+
+
+def charger_analyse(ligne: int) -> dict | None:
+    """Retourne le dict complet (params + resultats_json) d'une analyse donnée."""
+    try:
+        ws = _get_sheet(SHEET_ANALYSES)
+        vals = ws.get_all_values()
+        if ligne < 2 or ligne > len(vals):
+            return None
+        headers = vals[0]
+        r = vals[ligne - 1]
+        return {h: (r[j] if j < len(r) else "") for j, h in enumerate(headers)}
+    except Exception:
+        return None
+
+
+def supprimer_analyse(ligne: int) -> bool:
+    """Supprime la ligne d'une analyse dans le Sheet."""
+    try:
+        ws = _get_sheet(SHEET_ANALYSES)
+        ws.delete_rows(ligne)
+        return True
+    except Exception as e:
+        st.error(f"Erreur suppression : {e}")
         return False
