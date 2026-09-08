@@ -44,14 +44,16 @@ with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou su
                     st.toast("Analyse supprimée ✅"); st.rerun()
             else:
                 raw = charger_analyse(an["_ligne"])
-                if raw and raw.get("resultats_json"):
+                if not raw:
+                    st.error("Impossible de lire cette analyse.")
+                elif raw.get("resultats_json"):
+                    # Snapshot complet disponible → rechargement direct
                     try:
                         snap = json.loads(raw["resultats_json"])
 
                         def _from_dict(d):
-                            d["hygro_retenu"] = None if d.get("hygro_retenu") in ("None","") else d.get("hygro_retenu")
-                            # bool fields
-                            for k in ("admissible","hygro_exploitable"):
+                            d["hygro_retenu"] = None if d.get("hygro_retenu") in ("None", "") else d.get("hygro_retenu")
+                            for k in ("admissible", "hygro_exploitable"):
                                 if isinstance(d.get(k), str):
                                     d[k] = d[k].lower() == "true"
                             return ResultatMateriau(**d)
@@ -81,9 +83,51 @@ with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou su
                         }
                         st.toast("Analyse rechargée ✅"); st.rerun()
                     except Exception as ex:
-                        st.error(f"Impossible de recharger cette analyse : {ex}")
+                        st.error(f"Impossible de recharger : {ex}")
                 else:
-                    st.warning("Cette analyse a été sauvegardée avec l'ancienne version et ne contient pas les résultats détaillés.")
+                    # Ancienne analyse sans JSON → recalcul depuis la base de matériaux
+                    st.info(
+                        "Cette analyse a été sauvegardée avant la mise à jour. "
+                        "Recalcul automatique depuis la base de matériaux en cours…"
+                    )
+                    try:
+                        from database.sheets import lire_materiaux
+                        from modules.calculations import analyser_materiau
+                        from modules.decision import filtrer_et_classer
+                        from modules.hygro import classe_exterieur
+                        df_mat = lire_materiaux(actif_seulement=True)
+                        _R = float(raw.get("R_cible") or 0)
+                        _sm = float(raw.get("surface_murs_m2") or 0)
+                        _li = float(raw.get("lineaire_m") or 0)
+                        _pm = float(raw.get("prix_m2_logement") or 0)
+                        _mur = raw.get("composition_mur", "")
+                        _etat = raw.get("etat_exterieur", "Inconnu")
+                        _ext = classe_exterieur(_etat)
+                        res = [analyser_materiau(m.to_dict(), _R, _sm, _li, _pm,
+                                                 type_mur=_mur, classe_ext=_ext)
+                               for _, m in df_mat.iterrows()]
+                        adm, ec = filtrer_et_classer(res)
+                        p  = recommandation_principale(adm)
+                        a_ = alternative_economique(adm, p)
+                        params_snap = {
+                            "surface_logement": float(raw.get("surface_logement_m2") or 0),
+                            "surface_murs": _sm, "lineaire": _li,
+                            "hsp": float(raw.get("hsp_m") or 0),
+                            "composition_mur": _mur, "etat_exterieur": _etat,
+                            "classe_exterieur": _ext or "—",
+                            "R_cible": _R, "prix_m2": _pm,
+                        }
+                        st.session_state["resultats"] = {
+                            "nom_projet": raw.get("nom_projet", "—"),
+                            "params": params_snap,
+                            "admissibles": adm, "ecartees": ec,
+                            "principale": p, "alternative": a_,
+                            "explication_principale": generer_explication(p, True) if p else "",
+                            "explication_alternative": generer_explication(a_, False) if a_ else "",
+                        }
+                        st.toast("Analyse recalculée ✅"); st.rerun()
+                    except Exception as ex:
+                        st.error(f"Recalcul impossible : {ex}")
 
 st.markdown("---")
 
