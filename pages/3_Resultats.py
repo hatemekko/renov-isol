@@ -62,16 +62,17 @@ with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou su
                         ec  = [_from_dict(d) for d in snap.get("ecartees", [])]
                         p   = recommandation_principale(adm)
                         a_  = alternative_economique(adm, p)
+                        from database.sheets import _to_float as _tf
                         params_snap = {
-                            "surface_logement": float(raw.get("surface_logement_m2") or 0),
-                            "surface_murs": float(raw.get("surface_murs_m2") or 0),
-                            "lineaire": float(raw.get("lineaire_m") or 0),
-                            "hsp": float(raw.get("hsp_m") or 0),
+                            "surface_logement": _tf(raw.get("surface_logement_m2")),
+                            "surface_murs": _tf(raw.get("surface_murs_m2")),
+                            "lineaire": _tf(raw.get("lineaire_m")),
+                            "hsp": _tf(raw.get("hsp_m")),
                             "composition_mur": raw.get("composition_mur", "—"),
                             "etat_exterieur": raw.get("etat_exterieur", "—"),
                             "classe_exterieur": "—",
-                            "R_cible": float(raw.get("R_cible") or 0),
-                            "prix_m2": float(raw.get("prix_m2_logement") or 0),
+                            "R_cible": _tf(raw.get("R_cible")),
+                            "prix_m2": _tf(raw.get("prix_m2_logement")),
                         }
                         st.session_state["resultats"] = {
                             "nom_projet": raw.get("nom_projet", "—"),
@@ -91,15 +92,15 @@ with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou su
                         "Recalcul automatique depuis la base de matériaux en cours…"
                     )
                     try:
-                        from database.sheets import lire_materiaux
+                        from database.sheets import lire_materiaux, _to_float
                         from modules.calculations import analyser_materiau
                         from modules.decision import filtrer_et_classer
                         from modules.hygro import classe_exterieur
                         df_mat = lire_materiaux(actif_seulement=True)
-                        _R = float(raw.get("R_cible") or 0)
-                        _sm = float(raw.get("surface_murs_m2") or 0)
-                        _li = float(raw.get("lineaire_m") or 0)
-                        _pm = float(raw.get("prix_m2_logement") or 0)
+                        _R  = _to_float(raw.get("R_cible"))
+                        _sm = _to_float(raw.get("surface_murs_m2"))
+                        _li = _to_float(raw.get("lineaire_m"))
+                        _pm = _to_float(raw.get("prix_m2_logement"))
                         _mur = raw.get("composition_mur", "")
                         _etat = raw.get("etat_exterieur", "Inconnu")
                         _ext = classe_exterieur(_etat)
@@ -110,9 +111,9 @@ with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou su
                         p  = recommandation_principale(adm)
                         a_ = alternative_economique(adm, p)
                         params_snap = {
-                            "surface_logement": float(raw.get("surface_logement_m2") or 0),
+                            "surface_logement": _to_float(raw.get("surface_logement_m2")),
                             "surface_murs": _sm, "lineaire": _li,
-                            "hsp": float(raw.get("hsp_m") or 0),
+                            "hsp": _to_float(raw.get("hsp_m")),
                             "composition_mur": _mur, "etat_exterieur": _etat,
                             "classe_exterieur": _ext or "—",
                             "R_cible": _R, "prix_m2": _pm,
