@@ -96,21 +96,28 @@ with st.expander("📂 Analyses sauvegardées — recharger, télécharger ou su
                         from modules.calculations import analyser_materiau
                         from modules.decision import filtrer_et_classer
                         from modules.hygro import classe_exterieur, ETATS_EXTERIEUR
-                        _R  = _to_float(raw.get("R_cible"))
-                        _sm = _to_float(raw.get("surface_murs_m2"))
-                        _li = _to_float(raw.get("lineaire_m"))
-                        _pm = _to_float(raw.get("prix_m2_logement"))
+                        _R   = _to_float(raw.get("R_cible"))
+                        _sm  = _to_float(raw.get("surface_murs_m2"))
+                        _li  = _to_float(raw.get("lineaire_m"))
+                        _pm  = _to_float(raw.get("prix_m2_logement"))
                         _mur = raw.get("composition_mur", "")
                         _etat_raw = raw.get("etat_exterieur", "")
-                        # Si etat_exterieur absent (ancienne analyse), le demander
+                        # Si etat_exterieur absent → le stocker dans la session avant de recalculer
                         if not _etat_raw or _etat_raw in ("—", "Inconnu", ""):
-                            _etat_raw = st.selectbox(
-                                "⚠️ État extérieur manquant — indispensable pour le filtre HYGROBA. "
-                                "Indiquez la finition extérieure du mur de cette analyse :",
-                                options=ETATS_EXTERIEUR,
-                                key=f"etat_recalc_{an['_ligne']}",
+                            _key = f"etat_recalc_{an['_ligne']}"
+                            _etat_raw = st.session_state.get(_key, ETATS_EXTERIEUR[0])
+                            st.warning(
+                                "⚠️ État extérieur manquant dans cette ancienne analyse — "
+                                "indispensable pour le filtre HYGROBA."
                             )
-                            st.stop()
+                            _etat_raw = st.selectbox(
+                                "Finition extérieure du mur pour cette analyse :",
+                                options=ETATS_EXTERIEUR,
+                                index=ETATS_EXTERIEUR.index(_etat_raw),
+                                key=_key,
+                            )
+                            if not st.button("▶️ Lancer le recalcul", key=f"btn_recalc_{an['_ligne']}"):
+                                st.stop()
                         _ext = classe_exterieur(_etat_raw)
                         df_mat = lire_materiaux(actif_seulement=True)
                         res = [analyser_materiau(m.to_dict(), _R, _sm, _li, _pm,
