@@ -12,7 +12,7 @@ st.markdown("""
 
 ---
 
-**Développé dans le cadre d'un projet de fin d'études du :**
+**Développé par Hatem ELLOUZE dans le cadre d'un projet de fin d'études du :**
 
 > **Mastère Spécialisé Expert en Construction et Habitat Durables (ECHD)**
 > Arts et Métiers, promotion 2025-2026
